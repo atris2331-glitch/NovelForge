@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ebook Editor — A5 Novel</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Kanit:ital,wght@0,300;0,400;0,600;1,400&family=Prompt:ital,wght@0,300;0,400;0,600;1,400&family=Mitr:wght@300;400;600&family=Charm:wght@400;700&family=Noto+Serif+Thai:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="js/init.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── NovelForge V3 Top bar ── -->
+<div class="topbar">
+  <!-- Brand -->
+  <div class="topbar-brand">
+    NovelForge <span>V3 · A5 Ebook Editor</span>
+  </div>
+
+  <!-- Panel toggles -->
+  <button class="panel-toggle-btn active" id="leftPanelToggle" onclick="togglePanel('left')" title="ซ่อน/แสดงแผงซ้าย">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+  </button>
+  <button class="panel-toggle-btn active" id="rightPanelToggle" onclick="togglePanel('right')" title="ซ่อน/แสดงแผงขวา">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+  </button>
+
+  <span class="topbar-sep"></span>
+
+  <!-- Right side actions -->
+  <div class="topbar-actions">
+    <!-- Autosave -->
+    <div class="autosave-badge" id="autosaveBadge">
+      <div class="autosave-dot"></div>
+      <span id="autosaveText">Auto Save</span>
+    </div>
+
+    <span class="topbar-sep"></span>
+
+    <!-- Undo/Redo -->
+    <button class="btn btn-ghost" id="undoBtn" onclick="historyUndo()" title="ย้อนกลับ (Ctrl+Z)" disabled>
+      <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>
+    </button>
+    <button class="btn btn-ghost" id="redoBtn" onclick="historyRedo()" title="ทำซ้ำ (Ctrl+Y)" disabled>
+      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-3.63"/></svg>
+    </button>
+
+    <span class="topbar-sep"></span>
+
+    <!-- Search & Focus -->
+    <button class="btn btn-ghost" onclick="openSearch()" title="ค้นหา (Ctrl+F)">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="btn btn-ghost" onclick="toggleFocusMode()" title="Focus Mode">
+      <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+    </button>
+
+    <span class="topbar-sep"></span>
+
+    <!-- Import -->
+    <button class="btn btn-ghost btn-save-load" onclick="saveProject()" title="บันทึก .json">
+      <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      บันทึก
+    </button>
+    <button class="btn btn-ghost btn-save-load" onclick="loadProjectClick()" title="โหลด .json">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      โหลด
+    </button>
+    <button class="btn btn-ghost btn-save-load" onclick="importDocxClick()" title=".docx">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6M9 17h4"/></svg>
+      นำเข้า
+    </button>
+
+    <span class="topbar-sep"></span>
+
+    <!-- Export -->
+    <button class="btn btn-ghost" onclick="exportDOCX()" title="Export .docx">
+      .docx
+    </button>
+    <button class="btn btn-ghost btn-epub" onclick="exportEPUB()" title="Export EPUB">
+      EPUB
+    </button>
+    <button class="btn btn-primary" onclick="exportPDF()" title="Export PDF">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      PDF
+    </button>
+  </div>
+</div>
+
+<!-- ── Ribbon Toolbar ── -->
+<div class="ribbon" id="ribbon">
+  <div class="ribbon-tabs-wrap">
+    <div class="ribbon-tabs">
+      <div class="ribbon-tab active" data-rtab="home" onclick="switchRibbonTab('home',this)">🏠 หน้าแรก</div>
+      <div class="ribbon-tab" data-rtab="insert" onclick="switchRibbonTab('insert',this)">➕ แทรก</div>
+      <div class="ribbon-tab" data-rtab="format" onclick="switchRibbonTab('format',this)">🎨 การจัดหน้า</div>
+      <div class="ribbon-tab" data-rtab="theme" onclick="switchRibbonTab('theme',this)">✨ ธีม</div>
+      <div class="ribbon-tab" data-rtab="view" onclick="switchRibbonTab('view',this)">👁 มุมมอง</div>
+      <div class="ribbon-tab" data-rtab="spellcheck" onclick="switchRibbonTab('spellcheck',this)">🔍 ตรวจคำ</div>
+      <div class="ribbon-tab" data-rtab="ai" onclick="switchRibbonTab('ai',this)">🤖 AI</div>
+    </div>
+    <button class="ribbon-collapse-btn" id="ribbonCollapseBtn" onclick="toggleRibbon()" title="ซ่อน/แสดง Ribbon">▲</button>
+  </div>
+
+  <!-- Tab: หน้าแรก -->
+  <div class="ribbon-body active" id="rtab-home">
+    <!-- กลุ่ม: ประวัติ -->
+    <div class="ribbon-group">
+      <div class="ribbon-row">
+        <button class="rb rb-lg" id="rb-undo" onclick="historyUndo()" title="ย้อนกลับ Ctrl+Z">
+          <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>
+          <span class="rb-label">Undo</span>
+        </button>
+        <button class="rb rb-lg" id="rb-redo" onclick="historyRedo()" title="ทำซ้ำ Ctrl+Y">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-3.63"/></svg>
+          <span class="rb-label">Redo</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">ประวัติ</div>
+    </div>
+
+    <!-- กลุ่ม: ฟอนต์ -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px">
+        <select class="rb-select" id="rb-font" onchange="rbSetFont(this.value)" title="ฟอนต์" style="max-width:110px">
+          <option value="Sarabun">Sarabun</option>
+          <option value="Kanit">Kanit</option>
+          <option value="Prompt">Prompt</option>
+          <option value="Mitr">Mitr</option>
+          <option value="Charm">Charm (ลายมือ)</option>
+          <option value="Noto Serif Thai">Noto Serif Thai</option>
+        </select>
+        <input class="rb-num" id="rb-size" type="number" min="10" max="28" value="15" title="ขนาด (px)" onchange="rbSetFontSize(this.value)">
+      </div>
+      <div class="ribbon-row" style="gap:3px; margin-top:3px">
+        <button class="rb-text" id="rb-bold" onclick="rbFmt('bold')" title="ตัวหนา **text**"><b>B</b></button>
+        <button class="rb-text" id="rb-italic" onclick="rbFmt('italic')" title="ตัวเอียง _text_"><i>I</i></button>
+        <button class="rb-text" id="rb-under" onclick="rbFmt('underline')" title="ขีดเส้นใต้"><u>U</u></button>
+        <button class="rb-text" id="rb-strike" onclick="rbFmt('strike')" title="ขีดทับ"><s>S</s></button>
+        <div class="rb-sep"></div>
+        <div class="rb-color" id="rb-fgBox" title="สีตัวอักษร" style="background:#1a1612">
+          <input type="color" id="rb-fg" value="#1a1612" onchange="rbSetColor(this.value)">
+        </div>
+        <div class="rb-color" id="rb-hlBox" title="Highlight" style="background:#c9a227">
+          <input type="color" id="rb-hl" value="#c9a227" onchange="rbSetHighlight(this.value)">
+        </div>
+      </div>
+      <div class="ribbon-group-label">ฟอนต์</div>
+    </div>
+
+    <!-- กลุ่ม: การจัด -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:3px">
+        <button class="rb-text" id="rb-al" onclick="rbAlign('left')" title="ชิดซ้าย">≡L</button>
+        <button class="rb-text" id="rb-ac" onclick="rbAlign('center')" title="กึ่งกลาง">≡C</button>
+        <button class="rb-text" id="rb-ar" onclick="rbAlign('right')" title="ชิดขวา">≡R</button>
+        <button class="rb-text active" id="rb-aj" onclick="rbAlign('justify')" title="เต็มแนว">⊞J</button>
+      </div>
+      <div class="ribbon-row" style="gap:3px; margin-top:3px">
+        <button class="rb-text" onclick="rbFmt('quote')" title="คำพูด «»">«»</button>
+        <button class="rb-text" onclick="rbFmt('highlight')" title="เน้นข้อความ ==text==">✦</button>
+        <button class="rb-text" onclick="rbFmt('clear')" title="ล้างรูปแบบ">✕</button>
+      </div>
+      <div class="ribbon-group-label">การจัด</div>
+    </div>
+
+    <!-- กลุ่ม: ย่อหน้า -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px; flex-direction:column; align-items:flex-start">
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="font-size:10px;color:#9a9590;white-space:nowrap">บรรทัด</span>
+          <input class="rb-num" id="rb-lh" type="number" min="120" max="280" step="5" value="185" onchange="rbSetLineHeight(this.value)" title="Line height (%)" style="width:48px">
+          <span style="font-size:9px;color:#6b6560">%</span>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="font-size:10px;color:#9a9590;white-space:nowrap">Drop Cap</span>
+          <label class="toggle" style="transform:scale(0.8);transform-origin:left center">
+            <input type="checkbox" id="rb-dropcap" onchange="rbToggleDropCap(this)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="ribbon-group-label">ย่อหน้า</div>
+    </div>
+
+    <!-- กลุ่ม: ค้นหา -->
+    <div class="ribbon-group">
+      <div class="ribbon-row">
+        <button class="rb rb-lg" onclick="openSearch()" title="ค้นหาและแทนที่">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="rb-label">ค้นหา</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">แก้ไข</div>
+    </div>
+
+    <!-- กลุ่ม: บันทึก/Export -->
+    <div class="ribbon-group">
+      <div class="ribbon-row">
+        <button class="rb rb-lg" onclick="saveProject()" title="บันทึก .json">
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span class="rb-label">บันทึก</span>
+        </button>
+        <button class="rb rb-lg" onclick="loadProjectClick()" title="โหลด .json">
+          <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span class="rb-label">โหลด</span>
+        </button>
+        <div class="rb-sep"></div>
+        <button class="rb rb-lg" onclick="exportPDF()" title="Export PDF" style="color:var(--gold)">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="rb-label">PDF</span>
+        </button>
+        <button class="rb rb-lg" onclick="exportDOCX()" title="Export DOCX">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span class="rb-label">DOCX</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">ไฟล์</div>
+    </div>
+  </div>
+
+  <!-- Tab: แทรก -->
+  <div class="ribbon-body" id="rtab-insert">
+    <!-- กลุ่ม: บท -->
+    <div class="ribbon-group">
+      <div class="ribbon-row">
+        <button class="rb rb-lg" onclick="addChapter()" title="เพิ่มบทใหม่">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          <span class="rb-label">บทใหม่</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">บท</div>
+    </div>
+
+    <!-- กลุ่ม: แทรกข้อความ -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:3px">
+        <button class="rb-text" onclick="rbInsert('quote')" title='แทรกคำพูด « »'>«  »</button>
+        <button class="rb-text" onclick="rbInsert('curly')" title='แทรก " "'" " "</button>
+        <button class="rb-text" onclick="rbInsert('break')" title="แทรกเส้นคั่น">— ✦ —</button>
+        <button class="rb-text" onclick="rbInsert('para')" title="ย่อหน้าใหม่">¶</button>
+        <button class="rb-text" onclick="insertPageBreak()" title="แทรกตัดหน้าใหม่ (บังคับขึ้นหน้าใหม่)" style="color:#c9a227;border-color:rgba(201,162,39,0.4)">↵ หน้า</button>
+      </div>
+      <div class="ribbon-row" style="gap:3px; margin-top:3px">
+        <button class="rb-text" onclick="rbInsert('bold')" title="แทรก **ตัวหนา**"><b>**B**</b></button>
+        <button class="rb-text" onclick="rbInsert('italic')" title="แทรก _เอียง_"><i>_I_</i></button>
+        <button class="rb-text" onclick="rbInsert('highlight')" title="แทรก ==เน้น==">==✦==</button>
+      </div>
+      <div class="ribbon-group-label">แทรกข้อความ</div>
+    </div>
+
+    <!-- กลุ่ม: แทรกรูป -->
+    <div class="ribbon-group">
+      <div class="ribbon-row">
+        <button class="rb rb-lg" onclick="rbInsertChapterImage()" title="รูปประกอบบท">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span class="rb-label">รูปบท</span>
+        </button>
+        <button class="rb rb-lg" onclick="rbInsertFreeImage()" title="รูปอิสระ (ลากวาง)">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="9.5" y1="21" x2="14.5" y2="21"/></svg>
+          <span class="rb-label">รูปอิสระ</span>
+        </button>
+        <button class="rb rb-lg" onclick="rbUploadCover()" title="อัปโหลดรูปปก">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span class="rb-label">รูปปก</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">รูปภาพ</div>
+    </div>
+
+    <!-- กลุ่ม: หน้าพิเศษ -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:3px; flex-direction:column; align-items:flex-start">
+        <div style="display:flex;gap:6px;align-items:center">
+          <label class="toggle" style="transform:scale(0.75);transform-origin:left center"><input type="checkbox" id="rb-toc" onchange="document.getElementById('showTOC').checked=this.checked;updatePreview()"><span class="toggle-slider"></span></label>
+          <span style="font-size:11px;color:#c8c4be">สารบัญ</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label class="toggle" style="transform:scale(0.75);transform-origin:left center"><input type="checkbox" id="rb-preface" onchange="document.getElementById('showPreface').checked=this.checked;updatePreview()"><span class="toggle-slider"></span></label>
+          <span style="font-size:11px;color:#c8c4be">คำนำ</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label class="toggle" style="transform:scale(0.75);transform-origin:left center"><input type="checkbox" id="rb-dedication" onchange="document.getElementById('showDedication').checked=this.checked;updatePreview()"><span class="toggle-slider"></span></label>
+          <span style="font-size:11px;color:#c8c4be">คำอุทิศ</span>
+        </div>
+      </div>
+      <div class="ribbon-group-label">หน้าพิเศษ</div>
+    </div>
+  </div>
+
+  <!-- Tab: การจัดหน้า -->
+  <div class="ribbon-body" id="rtab-format">
+    <!-- กลุ่ม: ขนาดตัวอักษร -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px;align-items:center">
+        <span style="font-size:10px;color:#9a9590">ขนาด</span>
+        <input class="rb-num" type="number" min="10" max="24" value="15" id="rb-fs2" onchange="rbSetFontSizeGlobal(this.value)" style="width:44px">
+        <span style="font-size:9px;color:#6b6560">px</span>
+      </div>
+      <div class="ribbon-row" style="gap:4px;align-items:center;margin-top:4px">
+        <span style="font-size:10px;color:#9a9590">บรรทัด</span>
+        <input class="rb-num" type="number" min="120" max="280" step="5" value="185" id="rb-lh2" onchange="rbSetLineHeightGlobal(this.value)" style="width:44px">
+        <span style="font-size:9px;color:#6b6560">%</span>
+      </div>
+      <div class="ribbon-group-label">ตัวอักษร</div>
+    </div>
+
+    <!-- กลุ่ม: ขอบหน้า -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px;align-items:center">
+        <span style="font-size:10px;color:#9a9590">บน-ล่าง</span>
+        <input class="rb-num" type="number" min="20" max="90" value="56" id="rb-mv" onchange="rbSetMargin('v',this.value)" style="width:44px">
+      </div>
+      <div class="ribbon-row" style="gap:4px;align-items:center;margin-top:4px">
+        <span style="font-size:10px;color:#9a9590">ซ้าย-ขวา</span>
+        <input class="rb-num" type="number" min="20" max="90" value="52" id="rb-mh" onchange="rbSetMargin('h',this.value)" style="width:44px">
+      </div>
+      <div class="ribbon-group-label">ขอบหน้า (px)</div>
+    </div>
+
+    <!-- กลุ่ม: ลวดลายกระดาษ -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:3px;flex-wrap:wrap;max-width:160px">
+        <div class="rb-bp active" id="rb-tex-none" onclick="setPaperTexture('none',null);rbMarkTex('none')" title="ไม่มี">
+          <svg viewBox="0 0 24 32"><rect x="1" y="1" width="22" height="30" fill="#fffef9" rx="1"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-tex-lines" onclick="setPaperTexture('lines',null);rbMarkTex('lines')" title="เส้น">
+          <svg viewBox="0 0 24 32"><rect x="1" y="1" width="22" height="30" fill="#fefefe" rx="1"/><line x1="2" y1="8" x2="22" y2="8" stroke="#c8d8e8" stroke-width="1"/><line x1="2" y1="14" x2="22" y2="14" stroke="#c8d8e8" stroke-width="1"/><line x1="2" y1="20" x2="22" y2="20" stroke="#c8d8e8" stroke-width="1"/><line x1="2" y1="26" x2="22" y2="26" stroke="#c8d8e8" stroke-width="1"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-tex-grid" onclick="setPaperTexture('grid',null);rbMarkTex('grid')" title="ตาราง">
+          <svg viewBox="0 0 24 32"><rect x="1" y="1" width="22" height="30" fill="#fefefe" rx="1"/><line x1="2" y1="9" x2="22" y2="9" stroke="rgba(180,200,220,0.5)" stroke-width="1"/><line x1="2" y1="17" x2="22" y2="17" stroke="rgba(180,200,220,0.5)" stroke-width="1"/><line x1="2" y1="25" x2="22" y2="25" stroke="rgba(180,200,220,0.5)" stroke-width="1"/><line x1="8" y1="2" x2="8" y2="30" stroke="rgba(180,200,220,0.5)" stroke-width="1"/><line x1="16" y1="2" x2="16" y2="30" stroke="rgba(180,200,220,0.5)" stroke-width="1"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-tex-aged" onclick="setPaperTexture('aged',null);rbMarkTex('aged')" title="กระดาษเก่า">
+          <svg viewBox="0 0 24 32"><rect x="1" y="1" width="22" height="30" fill="#f5ead6" rx="1"/><text x="5" y="20" font-size="14" fill="rgba(160,100,40,0.2)">~</text></svg>
+        </div>
+        <div class="rb-bp" id="rb-tex-dark" onclick="setPaperTexture('dark',null);rbMarkTex('dark')" title="กระดาษดำ">
+          <svg viewBox="0 0 24 32"><rect x="1" y="1" width="22" height="30" fill="#1e1a16" rx="1"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-tex-parchment" onclick="setPaperTexture('parchment',null);rbMarkTex('parchment')" title="หนัง">
+          <svg viewBox="0 0 24 32"><rect x="1" y="1" width="22" height="30" fill="#dcc890" rx="1"/></svg>
+        </div>
+      </div>
+      <div class="ribbon-group-label">ลวดลายกระดาษ</div>
+    </div>
+
+    <!-- กลุ่ม: ขอบตกแต่ง -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:3px;flex-wrap:wrap;max-width:180px">
+        <div class="rb-bp active" id="rb-bp-none" onclick="setPageBorderPattern('none',null);rbMarkBp('none')" title="ไม่มี">
+          <svg viewBox="0 0 24 32"><rect x="1" y="1" width="22" height="30" fill="none" stroke="#333" stroke-width="0.5" rx="1"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-bp-classic" onclick="setPageBorderPattern('classic',null);rbMarkBp('classic')" title="คลาสสิก">
+          <svg viewBox="0 0 24 32"><rect x="2" y="2" width="20" height="28" fill="none" stroke="#8b4513" stroke-width="1.2" rx="0.5"/><rect x="4" y="4" width="16" height="24" fill="none" stroke="#8b4513" stroke-width="0.4" rx="0.5"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-bp-double" onclick="setPageBorderPattern('double',null);rbMarkBp('double')" title="เส้นคู่">
+          <svg viewBox="0 0 24 32"><rect x="2" y="2" width="20" height="28" fill="none" stroke="#8b4513" stroke-width="1.5" rx="0.5"/><rect x="4.5" y="4.5" width="15" height="23" fill="none" stroke="#8b4513" stroke-width="1.5" rx="0.5"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-bp-vintage" onclick="setPageBorderPattern('vintage',null);rbMarkBp('vintage')" title="วินเทจ">
+          <svg viewBox="0 0 24 32"><rect x="2" y="2" width="20" height="28" fill="none" stroke="#8b4513" stroke-width="1" rx="2"/><rect x="4" y="4" width="16" height="24" fill="none" stroke="#8b4513" stroke-width="0.4" stroke-dasharray="2,2" rx="1"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-bp-ornate" onclick="setPageBorderPattern('ornate',null);rbMarkBp('ornate')" title="ประดับมุม">
+          <svg viewBox="0 0 24 32"><rect x="2" y="2" width="20" height="28" fill="none" stroke="#c9a227" stroke-width="0.8" rx="0.5"/><circle cx="2" cy="2" r="1.5" fill="#c9a227"/><circle cx="22" cy="2" r="1.5" fill="#c9a227"/><circle cx="2" cy="30" r="1.5" fill="#c9a227"/><circle cx="22" cy="30" r="1.5" fill="#c9a227"/></svg>
+        </div>
+        <div class="rb-bp" id="rb-bp-minimal" onclick="setPageBorderPattern('minimal',null);rbMarkBp('minimal')" title="เส้นบน-ล่าง">
+          <svg viewBox="0 0 24 32"><line x1="2" y1="3" x2="22" y2="3" stroke="#8b4513" stroke-width="1.5"/><line x1="2" y1="29" x2="22" y2="29" stroke="#8b4513" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="ribbon-group-label">ขอบตกแต่ง</div>
+    </div>
+
+    <!-- กลุ่ม: เส้นคั่นบท -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:3px;flex-direction:column;align-items:flex-start">
+        <select class="rb-select" onchange="document.getElementById('dividerStyle').value=this.value;updatePreview()" style="max-width:120px">
+          <option value="line">─── เส้นตรง</option>
+          <option value="double">═══ เส้นคู่</option>
+          <option value="dots">· · · จุด</option>
+          <option value="asterism">⁂ Asterism</option>
+          <option value="wave">〜〜〜 คลื่น</option>
+          <option value="diamond">◆ ◇ ◆ เพชร</option>
+          <option value="fleuron">❧ Fleuron</option>
+          <option value="none">ไม่มี</option>
+        </select>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:3px">
+          <span style="font-size:10px;color:#9a9590">สีขอบ</span>
+          <div class="rb-color" id="rb-borderColorBox" style="background:#8b4513">
+            <input type="color" id="rb-borderColor" value="#8b4513" onchange="updateBorderColor(this.value);document.getElementById('rb-borderColorBox').style.background=this.value">
+          </div>
+        </div>
+      </div>
+      <div class="ribbon-group-label">เส้นคั่น</div>
+    </div>
+
+    <!-- กลุ่ม: หัว-ท้าย -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <label class="toggle" style="transform:scale(0.75);transform-origin:left center"><input type="checkbox" id="rb-header" checked onchange="document.getElementById('showHeader').checked=this.checked;renderChapterPages()"><span class="toggle-slider"></span></label>
+          <span style="font-size:11px;color:#c8c4be">หัวหน้า</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label class="toggle" style="transform:scale(0.75);transform-origin:left center"><input type="checkbox" id="rb-pagenum" checked onchange="document.getElementById('showPageNum').checked=this.checked;renderChapterPages()"><span class="toggle-slider"></span></label>
+          <span style="font-size:11px;color:#c8c4be">เลขหน้า</span>
+        </div>
+      </div>
+      <div class="ribbon-group-label">หัว-ท้าย</div>
+    </div>
+  </div>
+
+  <!-- Tab: ธีม -->
+  <div class="ribbon-body" id="rtab-theme">
+    <!-- กลุ่ม: Pattern หน้า -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px;flex-wrap:wrap;max-width:320px">
+        <button class="rb-text active" id="rb-lay-novel" onclick="applyLayoutCard('novel',this);rbMarkLayout(this)" style="font-size:10px">📖 Novel</button>
+        <button class="rb-text" id="rb-lay-romance" onclick="applyLayoutCard('romance',this);rbMarkLayout(this)" style="font-size:10px">🌸 Romance</button>
+        <button class="rb-text" id="rb-lay-fantasy" onclick="applyLayoutCard('fantasy',this);rbMarkLayout(this)" style="font-size:10px">⚔️ Fantasy</button>
+        <button class="rb-text" id="rb-lay-thriller" onclick="applyLayoutCard('thriller',this);rbMarkLayout(this)" style="font-size:10px">🔪 Thriller</button>
+        <button class="rb-text" id="rb-lay-literary" onclick="applyLayoutCard('literary',this);rbMarkLayout(this)" style="font-size:10px">📚 Literary</button>
+        <button class="rb-text" id="rb-lay-scifi" onclick="applyLayoutCard('scifi',this);rbMarkLayout(this)" style="font-size:10px">🚀 Sci-Fi</button>
+        <button class="rb-text" id="rb-lay-poetry" onclick="applyLayoutCard('poetry',this);rbMarkLayout(this)" style="font-size:10px">🌺 Poetry</button>
+        <button class="rb-text" id="rb-lay-dialogue" onclick="applyLayoutCard('dialogue',this);rbMarkLayout(this)" style="font-size:10px">💬 Dialogue</button>
+        <button class="rb-text" id="rb-lay-children" onclick="applyLayoutCard('children',this);rbMarkLayout(this)" style="font-size:10px">🧒 Children</button>
+      </div>
+      <div class="ribbon-group-label">Pattern การจัดหน้า</div>
+    </div>
+
+    <!-- กลุ่ม: สีสำเนียง -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px;flex-wrap:wrap;max-width:100px">
+        <div class="rb-swatch active" style="background:#8b4513" onclick="setAccent('#8b4513','#c4773a',this)" title="น้ำตาล"></div>
+        <div class="rb-swatch" style="background:#1a3a5c" onclick="setAccent('#1a3a5c','#2e6da4',this)" title="กรมท่า"></div>
+        <div class="rb-swatch" style="background:#2d6a4f" onclick="setAccent('#2d6a4f','#52b788',this)" title="เขียว"></div>
+        <div class="rb-swatch" style="background:#6b2d8b" onclick="setAccent('#6b2d8b','#9b59b6',this)" title="ม่วง"></div>
+        <div class="rb-swatch" style="background:#922b21" onclick="setAccent('#922b21','#e74c3c',this)" title="แดง"></div>
+        <div class="rb-swatch" style="background:#333333" onclick="setAccent('#333333','#666666',this)" title="เทา"></div>
+        <div class="rb-swatch" style="background:#c08020" onclick="setAccent('#c08020','#e0a040',this)" title="ทอง"></div>
+        <div class="rb-swatch" style="background:#2e5c8a" onclick="setAccent('#2e5c8a','#4a80b0',this)" title="ฟ้า"></div>
+      </div>
+      <div class="ribbon-group-label">สีสำเนียง</div>
+    </div>
+
+    <!-- กลุ่ม: Template ปก -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px;flex-wrap:wrap;max-width:260px">
+        <button class="rb-text active" id="rb-tpl-dark" onclick="setCoverTemplate('dark',null);rbMarkTpl('dark')" style="font-size:10px;background:linear-gradient(135deg,#1a1210,#3d2010);color:#d0cbc4;border-color:#3a3020">DARK</button>
+        <button class="rb-text" id="rb-tpl-navy" onclick="setCoverTemplate('navy',null);rbMarkTpl('navy')" style="font-size:10px;background:linear-gradient(135deg,#0a1628,#1a3a5c);color:#d0cbc4;border-color:#1a2a3c">NAVY</button>
+        <button class="rb-text" id="rb-tpl-forest" onclick="setCoverTemplate('forest',null);rbMarkTpl('forest')" style="font-size:10px;background:linear-gradient(135deg,#0d2016,#1e5c38);color:#d0cbc4;border-color:#1a3828">FOREST</button>
+        <button class="rb-text" id="rb-tpl-rose" onclick="setCoverTemplate('rose',null);rbMarkTpl('rose')" style="font-size:10px;background:linear-gradient(135deg,#2a0a14,#7a2040);color:#d0cbc4;border-color:#5a1830">ROSE</button>
+        <button class="rb-text" id="rb-tpl-ivory" onclick="setCoverTemplate('ivory',null);rbMarkTpl('ivory')" style="font-size:10px;background:linear-gradient(135deg,#f5ede0,#ddd0bc);color:#333;border-color:#ccc0ac">IVORY</button>
+        <button class="rb-text" id="rb-tpl-slate" onclick="setCoverTemplate('slate',null);rbMarkTpl('slate')" style="font-size:10px;background:linear-gradient(135deg,#1c1c24,#2e2e3a);color:#d0cbc4;border-color:#2e2e3a">SLATE</button>
+      </div>
+      <div class="ribbon-group-label">Template ปก</div>
+    </div>
+  </div>
+
+  <!-- Tab: มุมมอง -->
+  <div class="ribbon-body" id="rtab-view">
+    <!-- กลุ่ม: โหมดมุมมอง -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px">
+        <button class="rb rb-lg" id="rb-scroll" onclick="setViewMode('scroll',document.getElementById('vbScroll'))" title="Scroll">
+          <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <span class="rb-label">Scroll</span>
+        </button>
+        <button class="rb rb-lg active" id="rb-single" onclick="setViewMode('single',document.getElementById('vbSingle'))" title="หน้าเดียว">
+          <svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="1"/></svg>
+          <span class="rb-label">Single</span>
+        </button>
+        <button class="rb rb-lg" id="rb-spread" onclick="setViewMode('spread',document.getElementById('vbSpread'))" title="คู่หน้า">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="9" height="18" rx="1"/><rect x="13" y="3" width="9" height="18" rx="1"/></svg>
+          <span class="rb-label">Spread</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">โหมดมุมมอง</div>
+    </div>
+
+    <!-- กลุ่ม: ซูม -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px">
+        <button class="rb rb-lg" onclick="adjustZoom(-10)" title="ลดซูม">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          <span class="rb-label">ลด</span>
+        </button>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+          <div class="rb-zoom-val" id="rb-zoomVal">100%</div>
+          <input type="range" min="40" max="150" value="100" id="rb-zoomSlider" oninput="rbZoomSlider(this.value)" style="width:80px;accent-color:var(--accent);margin:0">
+        </div>
+        <button class="rb rb-lg" onclick="adjustZoom(+10)" title="เพิ่มซูม">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          <span class="rb-label">เพิ่ม</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">ซูม</div>
+    </div>
+
+    <!-- กลุ่ม: ไปหน้า -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:6px">
+        <button class="rb" onclick="navPage(-1)" title="หน้าก่อน">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span id="rb-navInfo" style="font-size:11px;color:#9a9590;min-width:70px;text-align:center">หน้า 1/1</span>
+        <button class="rb" onclick="navPage(1)" title="หน้าถัดไป">
+          <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="ribbon-group-label">นำทาง</div>
+    </div>
+
+    <!-- กลุ่ม: แผง -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px">
+        <button class="rb rb-lg active" id="rb-leftPanel" onclick="togglePanel('left');this.classList.toggle('active')" title="แผงซ้าย">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <span class="rb-label">แผงซ้าย</span>
+        </button>
+        <button class="rb rb-lg active" id="rb-rightPanel" onclick="togglePanel('right');this.classList.toggle('active')" title="แผงขวา">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+          <span class="rb-label">แผงขวา</span>
+        </button>
+        <button class="rb rb-lg" onclick="toggleFocusMode()" title="Focus Mode">
+          <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <span class="rb-label">Focus</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">แผง</div>
+    </div>
+  </div>
+
+  <!-- ── แท็บตรวจคำ ── -->
+  <div class="ribbon-body" id="rtab-spellcheck">
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:6px;flex-wrap:wrap;align-items:center">
+        <select id="sc-scope" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--panel-bg);color:var(--ink);font-family:'Sarabun',sans-serif">
+          <option value="current">บทปัจจุบัน</option>
+          <option value="all">ทุกบท</option>
+        </select>
+        <button class="rb rb-lg" onclick="runSpellCheck()" id="sc-btn" style="min-width:70px">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          <span class="rb-label">ตรวจ</span>
+        </button>
+        <button class="rb" onclick="clearSpellResults()" title="ล้างผล">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
+      <div class="ribbon-group-label">ตรวจสอบ</div>
+    </div>
+    <div class="ribbon-group" style="flex:1;min-width:200px">
+      <div id="sc-status" style="font-size:11px;color:var(--ink-muted);padding:2px 4px;min-height:32px;display:flex;align-items:center">
+        กด "ตรวจ" เพื่อเริ่มตรวจสอบคำผิด
+      </div>
+      <div class="ribbon-group-label">สถานะ</div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ── แท็บ AI ── -->
+  <div class="ribbon-body" id="rtab-ai">
+    <!-- กลุ่ม: API Key -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px;align-items:center">
+        <input type="password" id="ai-api-key" placeholder="sk-ant-..." autocomplete="off"
+          style="width:160px;padding:3px 8px;font-size:11px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:rgba(255,255,255,0.07);color:#c8c4be;font-family:'Sarabun',sans-serif;outline:none;margin:0"
+          oninput="aiSaveKey(this.value)" title="Anthropic API Key (เก็บใน localStorage บนเครื่องคุณเท่านั้น)">
+        <button class="rb" onclick="aiToggleKeyVisible()" title="แสดง/ซ่อน Key" id="ai-eye-btn">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="rb" onclick="aiClearKey()" title="ลบ Key">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+        </button>
+      </div>
+      <div class="ribbon-group-label">API Key</div>
+    </div>
+
+    <!-- กลุ่ม: สร้าง/ต่อเนื้อเรื่อง -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px">
+        <button class="rb rb-lg" onclick="aiFeature('continue')" title="ต่อเนื้อเรื่องต่อจากข้อความล่าสุด">
+          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <span class="rb-label">ต่อเรื่อง</span>
+        </button>
+        <button class="rb rb-lg" onclick="aiFeature('outline')" title="แปลงโครงเรื่อง → เนื้อหา">
+          <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <span class="rb-label">โครง&rarr;เรื่อง</span>
+        </button>
+        <button class="rb rb-lg" onclick="openStoryPlotter()" title="วางพล็อต AI แบ่งบทอัตโนมัติ">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span class="rb-label">วางพล็อต</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">สร้างเนื้อหา</div>
+    </div>
+
+    <!-- กลุ่ม: แก้ไข/ปรับ -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px">
+        <button class="rb rb-lg" onclick="aiFeature('rewrite')" title="สรุป/ปรับภาษา/แก้ style">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span class="rb-label">ปรับ Style</span>
+        </button>
+        <button class="rb rb-lg" onclick="aiFeature('suggest')" title="แนะนำประโยคต่อ">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <span class="rb-label">แนะนำต่อ</span>
+        </button>
+        <button class="rb rb-lg" onclick="aiFeature('thesaurus')" title="คำไวพจน์ / คำสวยงาม (ไฮไลต์คำก่อน)">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><line x1="10" y1="9" x2="16" y2="9"/><line x1="10" y1="13" x2="14" y2="13"/></svg>
+          <span class="rb-label">คำไวพจน์</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">ปรับแต่ง</div>
+    </div>
+
+    <!-- สถานะ -->
+    <div class="ribbon-group" style="flex:1;min-width:160px">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div id="ai-provider-badge" style="font-size:10px;font-weight:700;color:#1a73e8;letter-spacing:0.05em;cursor:pointer" onclick="document.getElementById('ai-key-modal').style.display='flex';aiUpdateProviderUI()">✦ Gemini (ฟรี)</div>
+        <div id="ai-status" style="font-size:11px;color:var(--ink-muted);min-height:20px">ใส่ API Key แล้วเลือกฟีเจอร์</div>
+      </div>
+      <div class="ribbon-group-label">สถานะ</div>
+    </div>
+
+    <!-- กลุ่ม: Undo AI -->
+    <div class="ribbon-group">
+      <div class="ribbon-row" style="gap:4px">
+        <button class="rb rb-lg" onclick="aiUndoLast()" title="ย้อนกลับเนื้อหาก่อน AI แก้ไข (ประวัติล่าสุด 20 ครั้ง)">
+          <svg viewBox="0 0 24 24"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
+          <span class="rb-label">Undo AI</span>
+        </button>
+      </div>
+      <div class="ribbon-group-label">ประวัติ AI</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal AI Result ── -->
+<div id="ai-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);align-items:center;justify-content:center">
+  <div style="background:var(--paper);border-radius:12px;width:min(720px,95vw);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden">
+    <!-- Header -->
+    <div style="background:var(--ink);color:#e8e4de;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div id="ai-modal-title" style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--gold)">🤖 AI</div>
+      <button onclick="document.getElementById('ai-modal').style.display='none'" style="background:none;border:none;color:#9a9590;font-size:20px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <!-- Prompt area -->
+    <div id="ai-prompt-wrap" style="padding:12px 20px;background:var(--panel-bg);border-bottom:1px solid var(--border);flex-shrink:0">
+      <div id="ai-prompt-label" style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">คำสั่งพิเศษ (ไม่จำเป็น)</div>
+      <textarea id="ai-prompt-extra" rows="2" placeholder="เช่น: ให้เนื้อหายาว 3 ย่อหน้า, ใช้ภาษาสุภาพ, เพิ่มบทสนทนา..."
+        style="width:100%;resize:vertical;font-family:'Sarabun',sans-serif;font-size:13px;border:1px solid var(--border);border-radius:6px;padding:8px 12px;background:#fff;color:var(--ink);outline:none;min-height:52px;margin:0"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <select id="ai-scope" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:#fff;color:var(--ink);font-family:'Sarabun',sans-serif">
+          <option value="current">บทปัจจุบัน</option>
+          <option value="selection">เฉพาะที่เลือก</option>
+          <option value="last500">500 ตัวอักษรท้าย</option>
+        </select>
+        <button id="ai-run-btn" onclick="aiRun()"
+          style="padding:6px 18px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          เริ่ม
+        </button>
+        <div id="ai-spinner" style="display:none;font-size:12px;color:var(--accent)">⏳ กำลังประมวลผล...</div>
+      </div>
+    </div>
+    <!-- Progress -->
+    <div id="ai-progress-wrap" style="padding:8px 20px;background:var(--panel-bg);border-bottom:1px solid var(--border);flex-shrink:0;display:none">
+      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div id="ai-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:3px;transition:width 0.4s"></div>
+      </div>
+    </div>
+    <!-- Result -->
+    <div style="overflow-y:auto;flex:1;padding:16px 20px">
+      <div id="ai-result-text" style="font-family:'Sarabun',sans-serif;font-size:14px;line-height:1.85;color:var(--ink);white-space:pre-wrap;min-height:80px"></div>
+    </div>
+    <!-- Footer actions -->
+    <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;flex-wrap:wrap">
+      <button id="ai-btn-copy" onclick="aiCopyResult()" style="padding:7px 16px;background:var(--panel-bg);color:var(--ink);border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;display:none">📋 คัดลอก</button>
+      <button id="ai-btn-insert" onclick="aiInsertResult()" style="padding:7px 16px;background:#16a34a;color:#fff;border:none;border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;display:none">✅ ใส่ในบทปัจจุบัน</button>
+      <button id="ai-btn-replace" onclick="aiReplaceResult()" style="padding:7px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;display:none">🔄 แทนที่เนื้อหา</button>
+      <button onclick="aiUndoLast()" title="ย้อนกลับเนื้อหาก่อนที่ AI จะแก้ไข" style="padding:7px 14px;background:transparent;color:var(--ink-muted);border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer">↩ Undo AI</button>
+      <button onclick="document.getElementById('ai-modal').style.display='none'" style="padding:7px 16px;background:transparent;color:var(--ink-muted);border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal API Key Setup ── -->
+<div id="ai-key-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center">
+  <div style="background:var(--paper);border-radius:12px;width:min(500px,95vw);box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden">
+    <div style="background:var(--ink);color:#e8e4de;padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--gold)">🔑 ตั้งค่า AI Provider</div>
+      <button onclick="document.getElementById('ai-key-modal').style.display='none'" style="background:none;border:none;color:#9a9590;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:20px">
+      <!-- Provider tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button onclick="aiModalSelectProvider('gemini')" id="ai-tab-gemini"
+          style="flex:1;padding:10px;border-radius:8px;border:2px solid #1a73e8;background:#e8f0fe;color:#1a73e8;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+          ✦ Google Gemini<br><span style="font-size:10px;font-weight:400">ฟรี • quota สูง</span>
+        </button>
+        <button onclick="aiModalSelectProvider('claude')" id="ai-tab-claude"
+          style="flex:1;padding:10px;border-radius:8px;border:2px solid var(--border);background:var(--panel-bg);color:var(--ink-muted);font-family:'Sarabun',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+          ◆ Anthropic Claude<br><span style="font-size:10px;font-weight:400">มีค่าใช้จ่าย</span>
+        </button>
+      </div>
+      <input type="hidden" id="ai-provider-select" value="gemini">
+
+      <!-- Gemini instructions -->
+      <div id="ai-guide-gemini" style="margin-bottom:12px;padding:10px;background:#e8f0fe;border-radius:8px;font-size:12px;color:#1a3a5c;line-height:1.7">
+        1. ไปที่ <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#1a73e8;font-weight:700">aistudio.google.com/apikey</a><br>
+        2. คลิก <strong>Create API Key</strong><br>
+        3. Copy key ที่ขึ้นต้นด้วย <code style="background:#fff;padding:1px 5px;border-radius:3px">AIza...</code><br>
+        4. วางในช่องด้านล่าง ✅ <strong>ฟรี ไม่ต้องใส่บัตรเครดิต</strong>
+      </div>
+      <div id="ai-guide-claude" style="display:none;margin-bottom:12px;padding:10px;background:#fef9f0;border-radius:8px;font-size:12px;color:#5a3010;line-height:1.7">
+        1. ไปที่ <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent);font-weight:700">console.anthropic.com</a><br>
+        2. เมนู <strong>API Keys</strong> → <strong>Create Key</strong><br>
+        3. Copy key ที่ขึ้นต้นด้วย <code style="background:#fff;padding:1px 5px;border-radius:3px">sk-ant-...</code>
+      </div>
+
+      <label style="font-size:12px;font-weight:700;color:var(--ink-muted);display:block;margin-bottom:6px">API Key</label>
+      <input type="password" id="ai-key-modal-input" placeholder="AIza..." autocomplete="off"
+        style="width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;font-family:'Sarabun',sans-serif;outline:none;margin-bottom:14px"
+        onkeydown="if(event.key==='Enter')aiSaveKeyModal()">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('ai-key-modal').style.display='none'" style="padding:7px 16px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;color:var(--ink-muted)">ยกเลิก</button>
+        <button onclick="aiSaveKeyModal()" style="padding:7px 18px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600">บันทึก Key</button>
+      </div>
+      <p style="margin-top:12px;font-size:11px;color:var(--ink-faint);text-align:center">🔒 Key เก็บใน localStorage บนเบราว์เซอร์คุณเท่านั้น ไม่มีการส่งออกไปที่อื่น</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── Modal Story Plotter ── -->
+<div id="story-plotter-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center">
+  <div style="background:var(--paper);border-radius:12px;width:min(820px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden">
+    <div style="background:var(--ink);color:#e8e4de;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--gold)">🗺️ วางพล็อตเรื่อง — Story Plotter</div>
+      <button onclick="document.getElementById('story-plotter-modal').style.display='none'" style="background:none;border:none;color:#9a9590;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:16px 20px;background:var(--panel-bg);border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:12px;font-weight:700;color:var(--ink-muted);letter-spacing:0.08em;margin-bottom:8px">ไอเดียเรื่องของคุณ (เขียนสั้นๆ ก็ได้)</div>
+      <textarea id="plotter-idea" rows="3" placeholder="เช่น: นิยายรักพระเอกเป็นหมอ นางเอกเป็นนักวาดภาพ เจอกันในโรงพยาบาล มีความขัดแย้งเรื่องครอบครัว..."
+        style="width:100%;resize:vertical;font-family:'Sarabun',sans-serif;font-size:13px;border:1px solid var(--border);border-radius:6px;padding:8px 12px;background:#fff;color:var(--ink);outline:none;min-height:60px"></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:12px;color:var(--ink-muted)">จำนวนบท:</label>
+          <input type="number" id="plotter-chapters" min="3" max="30" value="10"
+            style="width:52px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center">
+        </div>
+        <button id="plotter-run-btn" onclick="runStoryPlotter()"
+          style="padding:7px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          สร้างโครงเรื่อง
+        </button>
+        <div id="plotter-spinner" style="display:none;font-size:12px;color:var(--accent)">⏳ AI กำลังวางพล็อต...</div>
+      </div>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:16px 20px">
+      <div id="plotter-result" style="min-height:80px"></div>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;flex-wrap:wrap">
+      <button id="plotter-btn-add-chapters" onclick="plotterAddChapters()" style="display:none;padding:7px 16px;background:#16a34a;color:#fff;border:none;border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600">✅ สร้างบทให้ทั้งหมด</button>
+      <button onclick="document.getElementById('story-plotter-modal').style.display='none'" style="padding:7px 16px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;color:var(--ink-muted)">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal ผลตรวจคำ -->
+<div id="sc-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);align-items:center;justify-content:center">
+  <div style="background:var(--paper);border-radius:12px;width:min(700px,95vw);max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden">
+    <!-- Header -->
+    <div style="background:var(--ink);color:#e8e4de;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--gold)">🔍 ผลตรวจคำผิด</div>
+      <button onclick="document.getElementById('sc-modal').style.display='none'" style="background:none;border:none;color:#9a9590;font-size:20px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <!-- Summary bar -->
+    <div id="sc-summary" style="background:var(--panel-bg);padding:10px 20px;font-size:13px;color:var(--ink-muted);border-bottom:1px solid var(--border);flex-shrink:0"></div>
+    <!-- Progress -->
+    <div id="sc-progress-wrap" style="padding:10px 20px;background:var(--panel-bg);border-bottom:1px solid var(--border);flex-shrink:0;display:none">
+      <div style="font-size:12px;color:var(--ink-muted);margin-bottom:6px" id="sc-progress-label">กำลังตรวจสอบ...</div>
+      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div id="sc-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:3px;transition:width 0.3s"></div>
+      </div>
+    </div>
+    <!-- Results table -->
+    <div style="overflow-y:auto;flex:1">
+      <div id="sc-results-list" style="padding:12px 20px"></div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;flex-shrink:0">
+      <button onclick="document.getElementById('sc-modal').style.display='none'" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Left sidebar: Book info & chapters -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        ปก & ข้อมูลหนังสือ
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+
+      <div class="cover-info-toggle" onclick="toggleCoverInfo(this)">
+        <span>📷 ข้อมูลบนปกหนังสือ</span>
+        <span id="coverInfoToggleIcon">▼ ซ่อน</span>
+      </div>
+      <div class="toggle-row" style="margin-bottom:10px;padding:0 2px;">
+        <span class="toggle-label" style="font-size:12px;">แสดงข้อความบนปก</span>
+        <label class="toggle"><input type="checkbox" id="coverTextVisible" checked onchange="toggleCoverText(this)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="cover-info-fields" id="coverInfoFields">
+
+      <label>อัปโหลดรูปปก</label>
+      <div class="cover-drop" id="coverDrop">
+        <input type="file" accept="image/*" onchange="handleCoverUpload(this)">
+        <img class="cover-preview" id="coverPreview" alt="ปกหนังสือ">
+        <div class="cover-placeholder" id="coverPlaceholder">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          คลิกหรือลากภาพมาวางที่นี่<br>
+          <span style="color: var(--ink-faint); font-size: 11px;">แนะนำ 1024×1536 px (2:3)</span>
+        </div>
+      </div>
+
+      <label>ความสว่างรูปปก</label>
+      <div class="slider-row">
+        <input type="range" min="30" max="180" value="100" id="coverBrightness" oninput="updateCoverBrightness(this.value)">
+        <div class="slider-val" id="coverBrightnessVal">100%</div>
+      </div>
+      <label>ความเข้มเงา (Overlay)</label>
+      <div class="slider-row">
+        <input type="range" min="0" max="100" value="100" id="coverOverlay" oninput="updateCoverOverlay(this.value)">
+        <div class="slider-val" id="coverOverlayVal">100%</div>
+      </div>
+
+      <label>ชื่อเรื่อง</label>
+      <input type="text" id="bookTitle" value="เงาแห่งลม" oninput="updatePreview()" placeholder="ชื่อหนังสือ">
+
+      <label>ชื่อรอง (Subtitle)</label>
+      <input type="text" id="bookSubtitle" value="นิยายแฟนตาซีผจญภัย" oninput="updatePreview()" placeholder="ชื่อรอง หรือประเภท">
+
+      <div class="field-row">
+        <div>
+          <label>ชื่อผู้แต่ง</label>
+          <input type="text" id="authorName" value="ศิรินภา พรหมจักร" oninput="updatePreview()">
+        </div>
+        <div>
+          <label>นามปากกา</label>
+          <input type="text" id="penName" value="ลมเย็น" oninput="updatePreview()">
+        </div>
+      </div>
+
+      <label>สำนักพิมพ์ / Publisher</label>
+      <input type="text" id="publisher" value="สำนักพิมพ์ดาวใต้" oninput="updatePreview()">
+
+      <div class="field-row">
+        <div>
+          <label>ปีพิมพ์</label>
+          <input type="number" id="pubYear" value="2567" oninput="updatePreview()">
+        </div>
+        <div>
+          <label>ประเภท (Genre)</label>
+          <input type="text" id="genre" value="FANTASY · ADVENTURE" oninput="updatePreview()">
+        </div>
+      </div>
+      </div><!-- /cover-info-fields -->
+      </div><!-- /sidebar-body book info -->
+    </div>
+
+    <!-- Chapter list -->
+    <div class="sidebar-section">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        บทที่ / Chapters
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+      <div class="chapter-list" id="chapterList"></div>
+      <button class="btn-add-chapter" onclick="addChapter()">
+        + เพิ่มบทใหม่
+      </button>
+      </div>
+    </div>
+
+    <!-- Typography -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        ตัวอักษร
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+      <label>ฟอนต์เนื้อหา</label>
+      <div class="font-select" id="fontSelect">
+        <button class="font-btn active" style="font-family:'Sarabun',sans-serif" onclick="setBodyFont('Sarabun',this)">Sarabun — สระบุรี</button>
+        <button class="font-btn" style="font-family:'Kanit',sans-serif" onclick="setBodyFont('Kanit',this)">Kanit — คณิต</button>
+        <button class="font-btn" style="font-family:'Prompt',sans-serif" onclick="setBodyFont('Prompt',this)">Prompt — พร้อมท์</button>
+        <button class="font-btn" style="font-family:'Mitr',sans-serif" onclick="setBodyFont('Mitr',this)">Mitr — มิตร</button>
+        <button class="font-btn" style="font-family:'Charm',serif" onclick="setBodyFont('Charm',this)">Charm — ฉาร์ม (ลายมือ)</button>
+        <button class="font-btn" style="font-family:'Noto Serif Thai',serif" onclick="setBodyFont('Noto Serif Thai',this)">Noto Serif Thai — มีเซอริฟ</button>
+      </div>
+      <label>ขนาดตัวอักษรเนื้อหา</label>
+      <div class="slider-row">
+        <input type="range" min="12" max="20" value="15" id="fontSize" oninput="updateFontSize(this.value)">
+        <div class="slider-val" id="fontSizeVal">15px</div>
+      </div>
+      <label>ระยะห่างระหว่างบรรทัด</label>
+      <div class="slider-row">
+        <input type="range" min="150" max="250" value="185" step="5" id="lineHeight" oninput="updateLineHeight(this.value)">
+        <div class="slider-val" id="lineHeightVal">1.85</div>
+      </div>
+      <label>ธีมสีสำเนียง</label>
+      <div class="color-row">
+        <div class="swatch active" style="background:#8b4513" onclick="setAccent('#8b4513','#c4773a',this)" title="Saddle Brown"></div>
+        <div class="swatch" style="background:#1a3a5c" onclick="setAccent('#1a3a5c','#2e6da4',this)" title="Navy"></div>
+        <div class="swatch" style="background:#2d6a4f" onclick="setAccent('#2d6a4f','#52b788',this)" title="Forest"></div>
+        <div class="swatch" style="background:#6b2d8b" onclick="setAccent('#6b2d8b','#9b59b6',this)" title="Royal Purple"></div>
+        <div class="swatch" style="background:#922b21" onclick="setAccent('#922b21','#e74c3c',this)" title="Crimson"></div>
+        <div class="swatch" style="background:#333333" onclick="setAccent('#333333','#666666',this)" title="Monochrome"></div>
+      </div>
+      </div><!-- /sidebar-body typography -->
+    </div>
+
+    <!-- Special pages -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        หน้าพิเศษ
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+
+      <!-- Title Page Editor -->
+      <div style="background:var(--panel-bg);border-radius:6px;padding:10px 12px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.08em;margin-bottom:8px">📄 หน้าชื่อเรื่อง (Title Page)</div>
+        <label>เครื่องประดับหัว</label>
+        <select id="titlePageOrnament" oninput="updateTitlePage()" style="margin-bottom:8px">
+          <option value="✦ ✦ ✦">✦ ✦ ✦</option>
+          <option value="— ✦ —">— ✦ —</option>
+          <option value="❧">❧ (Fleuron)</option>
+          <option value="⁂">⁂ (Asterism)</option>
+          <option value="◆ ◇ ◆">◆ ◇ ◆</option>
+          <option value="★ ☆ ★">★ ☆ ★</option>
+          <option value="· · ·">· · · (จุด)</option>
+          <option value="">ไม่มี</option>
+        </select>
+        <label>ชื่อเรื่อง (ใช้จาก "ชื่อหนังสือ" ด้านบน หรือกำหนดเอง)</label>
+        <input type="text" id="titlePageCustomTitle" placeholder="ปล่อยว่าง = ใช้ชื่อหนังสือ" oninput="updateTitlePage()">
+        <label>ชื่อรอง (ใช้จาก "ชื่อรอง" หรือกำหนดเอง)</label>
+        <input type="text" id="titlePageCustomSubtitle" placeholder="ปล่อยว่าง = ใช้ชื่อรอง" oninput="updateTitlePage()">
+        <label>ผู้แต่ง (ใช้จาก "ชื่อผู้แต่ง" หรือกำหนดเอง)</label>
+        <input type="text" id="titlePageCustomAuthor" placeholder="ปล่อยว่าง = ใช้ชื่อผู้แต่ง" oninput="updateTitlePage()">
+        <label>นามปากกา (แสดงในวงเล็บ)</label>
+        <input type="text" id="titlePageCustomPen" placeholder="ปล่อยว่าง = ใช้นามปากกา" oninput="updateTitlePage()">
+        <label>สำนักพิมพ์ · ปี (บรรทัดล่าง)</label>
+        <input type="text" id="titlePageCustomPub" placeholder="ปล่อยว่าง = ใช้ข้อมูลจากปก" oninput="updateTitlePage()">
+        <label>Layout หน้าชื่อเรื่อง</label>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="rb-text active" id="tplayout-center" onclick="setTitlePageLayout('center',this)" style="font-size:10px;flex:1">⊙ กลาง</button>
+          <button class="rb-text" id="tplayout-left"   onclick="setTitlePageLayout('left',this)"   style="font-size:10px;flex:1">◧ ซ้าย</button>
+          <button class="rb-text" id="tplayout-bottom" onclick="setTitlePageLayout('bottom',this)" style="font-size:10px;flex:1">⊕ ล่าง</button>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">สารบัญ (TOC)</span>
+        <label class="toggle"><input type="checkbox" id="showTOC" onchange="updatePreview();document.getElementById('tocStyleRow').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="tocStyleRow" style="display:none;margin-bottom:10px">
+        <label style="font-size:11px;margin-bottom:4px">สไตล์สารบัญ</label>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="rb-text active" id="toc-style-classic"  onclick="setTocStyle('classic',this)"  style="font-size:10px;flex:1;min-width:60px">📜 Classic</button>
+          <button class="rb-text" id="toc-style-elegant"  onclick="setTocStyle('elegant',this)"  style="font-size:10px;flex:1;min-width:60px">✨ Elegant</button>
+          <button class="rb-text" id="toc-style-modern"   onclick="setTocStyle('modern',this)"   style="font-size:10px;flex:1;min-width:60px">◼ Modern</button>
+          <button class="rb-text" id="toc-style-boxed"    onclick="setTocStyle('boxed',this)"    style="font-size:10px;flex:1;min-width:60px">▦ Boxed</button>
+          <button class="rb-text" id="toc-style-roman"    onclick="setTocStyle('roman',this)"    style="font-size:10px;flex:1;min-width:60px">— Roman</button>
+          <button class="rb-text" id="toc-style-split"    onclick="setTocStyle('split',this)"    style="font-size:10px;flex:1;min-width:60px">▤ Split</button>
+          <button class="rb-text" id="toc-style-ornate"   onclick="setTocStyle('ornate',this)"   style="font-size:10px;flex:1;min-width:60px">✦ Ornate</button>
+          <button class="rb-text" id="toc-style-minimal"  onclick="setTocStyle('minimal',this)"  style="font-size:10px;flex:1;min-width:60px">— Minimal</button>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">คำนำ (Preface)</span>
+        <label class="toggle"><input type="checkbox" id="showPreface" onchange="updatePreview()"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="prefaceFields" style="display:none">
+        <label>หัวข้อคำนำ</label>
+        <input type="text" id="prefaceTitle" value="คำนำ" oninput="updatePreview()">
+        <label>เนื้อหาคำนำ</label>
+        <textarea id="prefaceContent" placeholder="เขียนคำนำที่นี่..." oninput="updatePreview()" style="min-height:80px"></textarea>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">คำอุทิศ (Dedication)</span>
+        <label class="toggle"><input type="checkbox" id="showDedication" onchange="updatePreview()"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="dedicationFields" style="display:none">
+        <label>ข้อความอุทิศ</label>
+        <textarea id="dedicationText" placeholder="สำหรับ..." oninput="updatePreview()" style="min-height:60px"></textarea>
+      </div>
+
+      <!-- Custom Special Pages -->
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.08em;margin-bottom:8px">➕ หน้าพิเศษเพิ่มเติม</div>
+        <div id="customSpecialPagesList" style="margin-bottom:8px"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button onclick="addCustomSpecialPage('เรื่องย่อ')" class="btn-add-chapter" style="flex:1;min-width:80px;font-size:11px;padding:5px">📋 เรื่องย่อ</button>
+          <button onclick="addCustomSpecialPage('บทย่อ')" class="btn-add-chapter" style="flex:1;min-width:80px;font-size:11px;padding:5px">📑 บทย่อ</button>
+          <button onclick="addCustomSpecialPage('อ้างอิง')" class="btn-add-chapter" style="flex:1;min-width:80px;font-size:11px;padding:5px">📚 อ้างอิง</button>
+          <button onclick="addCustomSpecialPage('คำศัพท์เฉพาะ')" class="btn-add-chapter" style="flex:1;min-width:80px;font-size:11px;padding:5px">📖 คำศัพท์</button>
+          <button onclick="addCustomSpecialPage('ขอบคุณ')" class="btn-add-chapter" style="flex:1;min-width:80px;font-size:11px;padding:5px">🙏 ขอบคุณ</button>
+          <button onclick="addCustomSpecialPageCustom()" class="btn-add-chapter" style="flex:1;min-width:80px;font-size:11px;padding:5px;border-color:var(--accent);color:var(--accent)">✏️ กำหนดเอง</button>
+        </div>
+      </div>
+      </div><!-- /sidebar-body special pages -->
+    </div>
+
+    <!-- Layout Presets -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        รูปแบบการจัดวาง
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+      <div class="layout-grid">
+        <button class="layout-btn active" id="lay-novel" onclick="applyLayout('novel',this)">
+          <span class="lb-icon">📖</span>
+          <span class="lb-name">Novel</span>
+          <span class="lb-desc">นิยาย ย่อหน้า indent</span>
+        </button>
+        <button class="layout-btn" id="lay-poetry" onclick="applyLayout('poetry',this)">
+          <span class="lb-icon">🌸</span>
+          <span class="lb-name">Poetry</span>
+          <span class="lb-desc">กลอน บรรทัดเว้นวรรค</span>
+        </button>
+        <button class="layout-btn" id="lay-dialogue" onclick="applyLayout('dialogue',this)">
+          <span class="lb-icon">💬</span>
+          <span class="lb-name">Dialogue</span>
+          <span class="lb-desc">บทสนทนา ชิดซ้าย</span>
+        </button>
+        <button class="layout-btn" id="lay-magazine" onclick="applyLayout('magazine',this)">
+          <span class="lb-icon">📰</span>
+          <span class="lb-name">Magazine</span>
+          <span class="lb-desc">บทความ ไม่ indent</span>
+        </button>
+        <button class="layout-btn" id="lay-wide" onclick="applyLayout('wide',this)">
+          <span class="lb-icon">📐</span>
+          <span class="lb-name">Wide</span>
+          <span class="lb-desc">ขอบแคบ เนื้อที่กว้าง</span>
+        </button>
+        <button class="layout-btn" id="lay-compact" onclick="applyLayout('compact',this)">
+          <span class="lb-icon">🔖</span>
+          <span class="lb-name">Compact</span>
+          <span class="lb-desc">ตัวเล็ก ขอบกว้าง</span>
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--ink-faint);line-height:1.6;">นิยายมาตรฐาน: ย่อหน้าแบบ indent, ตัวอักษร 15px, บรรทัด 1.85</div>
+      </div>
+    </div>
+
+    <!-- Chapter divider -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        เส้นขั้นบท (Divider)
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+      <label>รูปแบบ</label>
+      <select id="dividerStyle" onchange="updatePreview()">
+        <option value="line">─── เส้นตรง</option>
+        <option value="double">═══ เส้นคู่</option>
+        <option value="dots">· · · จุด</option>
+        <option value="asterism">⁂ Asterism</option>
+        <option value="wave">〜〜〜 คลื่น</option>
+        <option value="diamond">◆ ◇ ◆ เพชร</option>
+        <option value="fleuron">❧ Fleuron</option>
+        <optgroup label="── แนวอนิเมะ / แฟนซี ──">
+        <option value="sparkle">✦ ✧ ✦ Sparkle</option>
+        <option value="star">★ ☆ ★ Star</option>
+        <option value="heart">♡ ♥ ♡ Heart</option>
+        <option value="sakura">🌸 · 🌸 Sakura</option>
+        <option value="moon">☽ ✦ ☾ Moon</option>
+        <option value="ribbon">—— 🎀 —— Ribbon</option>
+        <option value="butterfly">🦋 · 🦋 Butterfly</option>
+        <option value="cat">≧^◡^≦ Cat</option>
+        <option value="rose">🌹 · · 🌹 Rose</option>
+        </optgroup>
+        <optgroup label="── แอ็กชัน / แฟนตาซี ──">
+        <option value="sword">⚔ · · · ⚔ Sword</option>
+        <option value="dragon">— 龍 — Dragon</option>
+        <option value="thunder">⚡ · · ⚡ Thunder</option>
+        <option value="cross">✝ · · ✝ Cross</option>
+        </optgroup>
+        <option value="custom_div">✏️ กำหนดเอง (HTML)</option>
+        <option value="none">ไม่มีเส้น</option>
+      </select>
+      <div id="customDividerFields" style="display:none;margin-top:8px;padding:8px;background:var(--panel-bg);border-radius:6px;border:1px solid var(--border)">
+        <label style="margin-bottom:4px;font-size:11px">HTML เส้นขั้นบทเอง</label>
+        <textarea id="customDividerInput" placeholder='&lt;div style="text-align:center;color:#c9a227"&gt;✦ ✧ ✦&lt;/div&gt;' style="min-height:48px;font-size:11px;font-family:monospace" oninput="customDividerHTML=this.value;updatePreview()"></textarea>
+      </div>
+      </div><!-- /sidebar-body divider -->
+    </div>
+
+    <!-- Cover template -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Template ปก
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+      <div class="cover-templates" style="grid-template-columns:repeat(3,1fr)">
+        <!-- เดิม -->
+        <div class="cover-tpl active" id="tpl-dark" style="background:linear-gradient(160deg,#1a1210,#3d2010)" onclick="setCoverTemplate('dark',this)"><span>Dark Classic</span></div>
+        <div class="cover-tpl" id="tpl-navy" style="background:linear-gradient(160deg,#0a1628,#1a3a5c)" onclick="setCoverTemplate('navy',this)"><span>Navy Night</span></div>
+        <div class="cover-tpl" id="tpl-forest" style="background:linear-gradient(160deg,#0d2016,#1e5c38)" onclick="setCoverTemplate('forest',this)"><span>Forest</span></div>
+        <div class="cover-tpl" id="tpl-rose" style="background:linear-gradient(160deg,#2a0a14,#7a2040)" onclick="setCoverTemplate('rose',this)"><span>Rose Dark</span></div>
+        <div class="cover-tpl" id="tpl-ivory" style="background:linear-gradient(160deg,#f5ede0,#ddd0bc)" onclick="setCoverTemplate('ivory',this)"><span style="color:#555">Ivory</span></div>
+        <div class="cover-tpl" id="tpl-slate" style="background:linear-gradient(160deg,#1c1c24,#2e2e3a)" onclick="setCoverTemplate('slate',this)"><span>Slate Noir</span></div>
+        <!-- แนวอนิเมะ -->
+        <div class="cover-tpl" id="tpl-anime_dark" style="background:linear-gradient(160deg,#0e001e,#1a0040)" onclick="setCoverTemplate('anime_dark',this)"><span style="color:#a78bfa">✨ Anime Dark</span></div>
+        <div class="cover-tpl" id="tpl-anime_day" style="background:linear-gradient(160deg,#e0e7ff,#a5b4fc)" onclick="setCoverTemplate('anime_day',this)"><span style="color:#3730a3">🌤 Anime Day</span></div>
+        <div class="cover-tpl" id="tpl-sakura" style="background:linear-gradient(160deg,#1a0010,#4a1030)" onclick="setCoverTemplate('sakura',this)"><span style="color:#f9a8d4">🌸 Sakura</span></div>
+        <div class="cover-tpl" id="tpl-sakura_soft" style="background:linear-gradient(160deg,#fff0f5,#ffd6e8)" onclick="setCoverTemplate('sakura_soft',this)"><span style="color:#be185d">🌸 Soft</span></div>
+        <!-- แนววาย/โรแมนติก -->
+        <div class="cover-tpl" id="tpl-yaoi_dark" style="background:linear-gradient(160deg,#0a0015,#1e0035)" onclick="setCoverTemplate('yaoi_dark',this)"><span style="color:#c084fc">💜 BL Dark</span></div>
+        <div class="cover-tpl" id="tpl-yaoi_pink" style="background:linear-gradient(160deg,#2d001a,#5a0030)" onclick="setCoverTemplate('yaoi_pink',this)"><span style="color:#fda4af">💗 BL Pink</span></div>
+        <div class="cover-tpl" id="tpl-vintage_bl" style="background:linear-gradient(160deg,#fdf2f8,#fce7f3)" onclick="setCoverTemplate('vintage_bl',this)"><span style="color:#9d174d">🎀 Vintage</span></div>
+        <!-- แนวแฟนตาซี/แอ็กชัน -->
+        <div class="cover-tpl" id="tpl-fantasy_gold" style="background:linear-gradient(160deg,#1a1000,#3d2800)" onclick="setCoverTemplate('fantasy_gold',this)"><span style="color:#fbbf24">⚔ Fantasy Gold</span></div>
+        <div class="cover-tpl" id="tpl-galaxy" style="background:linear-gradient(160deg,#020817,#1a0a2e)" onclick="setCoverTemplate('galaxy',this)"><span style="color:#818cf8">🌌 Galaxy</span></div>
+        <div class="cover-tpl" id="tpl-wuxia" style="background:linear-gradient(160deg,#1a0505,#3d0000)" onclick="setCoverTemplate('wuxia',this)"><span style="color:#fca5a5">龍 Wuxia</span></div>
+        <!-- เด็ก/สดใส -->
+        <div class="cover-tpl" id="tpl-kidspastel" style="background:linear-gradient(160deg,#fef3c7,#fde8f0,#e8f0fe)" onclick="setCoverTemplate('kidspastel',this)"><span style="color:#b45309">🎈 Kids Pastel</span></div>
+        <div class="cover-tpl" id="tpl-mint_fresh" style="background:linear-gradient(160deg,#064e3b,#059669)" onclick="setCoverTemplate('mint_fresh',this)"><span style="color:#a7f3d0">🍃 Mint</span></div>
+        <div class="cover-tpl" id="tpl-ocean" style="background:linear-gradient(160deg,#001e3c,#003366)" onclick="setCoverTemplate('ocean',this)"><span style="color:#7dd3fc">🌊 Ocean</span></div>
+        <!-- สยองขวัญ/ดาร์ก -->
+        <div class="cover-tpl" id="tpl-horror" style="background:linear-gradient(160deg,#000,#1a0000)" onclick="setCoverTemplate('horror',this)"><span style="color:#ef4444">💀 Horror</span></div>
+        <div class="cover-tpl" id="tpl-steampunk" style="background:linear-gradient(160deg,#1c1408,#2d2010)" onclick="setCoverTemplate('steampunk',this)"><span style="color:#d97706">⚙ Steampunk</span></div>
+        <!-- Custom upload -->
+        <div class="cover-tpl" id="tpl-custom_tpl" style="background:repeating-linear-gradient(45deg,#2a2018,#2a2018 5px,#1a1612 5px,#1a1612 10px)" onclick="setCoverTemplate('custom_tpl',this);document.getElementById('customCoverUpload').click()"><span style="color:#34d399">📁 อัปโหลด</span></div>
+        <input type="file" id="customCoverUpload" accept="image/*" style="display:none" onchange="loadCustomCoverImage(this)">
+      </div>
+      </div><!-- /sidebar-body cover template -->
+    </div>
+
+    <!-- ── รูปแบบ: Pattern การจัดหน้า ── -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        🎨 Pattern การจัดหน้า
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+        <div class="layout-cards" id="layoutCardList">
+          <div class="layout-card active" id="lcard-novel" onclick="applyLayoutCard('novel',this)">
+            <div class="lc-preview"><div class="lc-drop"></div><div class="lc-line" style="width:80%"></div><div class="lc-line" style="width:90%"></div><div class="lc-line" style="width:85%"></div><div class="lc-line" style="width:88%"></div><div class="lc-line" style="width:60%"></div></div>
+            <div class="lc-info"><div class="lc-name">📖 Thai Classic</div><div class="lc-desc">Drop Cap, indent, justify — อ่านสบาย</div></div>
+            <div class="lc-tag">ยอดนิยม</div>
+          </div>
+          <div class="layout-card" id="lcard-romance" onclick="applyLayoutCard('romance',this)">
+            <div class="lc-preview"><div class="lc-drop" style="background:#c0696e"></div><div class="lc-line" style="width:80%"></div><div class="lc-line" style="width:88%"></div></div>
+            <div class="lc-info"><div class="lc-name">🌸 Light Romance</div><div class="lc-desc">บรรทัดโปร่ง ฟอนต์ Charm หวานนุ่ม</div></div>
+            <div class="lc-tag">โรแมนซ์</div>
+          </div>
+          <div class="layout-card" id="lcard-fantasy" onclick="applyLayoutCard('fantasy',this)">
+            <div class="lc-preview"><div class="lc-line" style="width:90%"></div><div class="lc-line" style="width:85%"></div><div class="lc-line" style="width:88%"></div></div>
+            <div class="lc-info"><div class="lc-name">⚔️ Dark Fantasy</div><div class="lc-desc">ขอบกว้าง บรรทัดแน่น Noto Serif Thai</div></div>
+            <div class="lc-tag">แฟนตาซี</div>
+          </div>
+          <div class="layout-card" id="lcard-thriller" onclick="applyLayoutCard('thriller',this)">
+            <div class="lc-preview"><div class="lc-line" style="width:88%"></div><div class="lc-line" style="width:82%"></div><div class="lc-line" style="width:90%"></div></div>
+            <div class="lc-info"><div class="lc-name">🔪 Thriller</div><div class="lc-desc">ตัวเล็ก บรรทัดชิด อ่านเร็ว</div></div>
+            <div class="lc-tag">Thriller</div>
+          </div>
+          <div class="layout-card" id="lcard-literary" onclick="applyLayoutCard('literary',this)">
+            <div class="lc-preview"><div class="lc-drop" style="background:#6b8c5a"></div><div class="lc-line" style="width:78%"></div><div class="lc-line" style="width:85%"></div></div>
+            <div class="lc-info"><div class="lc-name">📚 Literary</div><div class="lc-desc">ขอบกว้าง บรรทัดห่าง Prompt</div></div>
+            <div class="lc-tag">วรรณกรรม</div>
+          </div>
+          <div class="layout-card" id="lcard-scifi" onclick="applyLayoutCard('scifi',this)">
+            <div class="lc-preview" style="background:#f2f4f8"><div class="lc-line" style="width:90%;background:#7090b0"></div><div class="lc-line" style="width:84%;background:#7090b0"></div></div>
+            <div class="lc-info"><div class="lc-name">🚀 Sci-Fi</div><div class="lc-desc">ชิดซ้าย Mitr ทันสมัย</div></div>
+            <div class="lc-tag">Sci-Fi</div>
+          </div>
+          <div class="layout-card" id="lcard-dialogue" onclick="applyLayoutCard('dialogue',this)">
+            <div class="lc-preview"><div class="lc-line" style="width:60%"></div><div class="lc-line" style="width:75%;margin-left:4px"></div></div>
+            <div class="lc-info"><div class="lc-name">💬 Dialogue</div><div class="lc-desc">ชิดซ้าย ไม่ indent</div></div>
+            <div class="lc-tag">สนทนา</div>
+          </div>
+          <div class="layout-card" id="lcard-poetry" onclick="applyLayoutCard('poetry',this)">
+            <div class="lc-preview"><div class="lc-line" style="width:65%;margin:0 auto"></div><div class="lc-line" style="width:55%;margin:2px auto 0"></div></div>
+            <div class="lc-info"><div class="lc-name">🌺 Poetry</div><div class="lc-desc">กึ่งกลาง บรรทัดห่าง</div></div>
+            <div class="lc-tag">กลอน</div>
+          </div>
+          <div class="layout-card" id="lcard-children" onclick="applyLayoutCard('children',this)">
+            <div class="lc-preview"><div class="lc-line" style="width:70%;height:3px;background:#f0c040"></div><div class="lc-line" style="width:80%;height:3px"></div></div>
+            <div class="lc-info"><div class="lc-name">🎈 Children's Book</div><div class="lc-desc">ตัวใหญ่ 18px บรรทัดห่างมาก</div></div>
+            <div class="lc-tag">หนังสือเด็ก</div>
+          </div>
+          <!-- แนวใหม่ -->
+          <div class="layout-card" id="lcard-anime" onclick="applyLayoutCard('anime',this)">
+            <div class="lc-preview" style="background:#f8f4ff"><div class="lc-line" style="width:88%;background:#7c3aed"></div><div class="lc-line" style="width:80%;background:#a855f7"></div></div>
+            <div class="lc-info"><div class="lc-name">✨ Anime Style</div><div class="lc-desc">Kanit สีม่วง ชิดซ้าย สไตล์อนิเมะ</div></div>
+            <div class="lc-tag" style="background:#7c3aed">อนิเมะ</div>
+          </div>
+          <div class="layout-card" id="lcard-yaoi" onclick="applyLayoutCard('yaoi',this)">
+            <div class="lc-preview" style="background:#fff5f8"><div class="lc-drop" style="background:#be185d"></div><div class="lc-line" style="width:85%;background:#ec4899"></div></div>
+            <div class="lc-info"><div class="lc-name">💜 Y/BL Style</div><div class="lc-desc">Charm สีชมพู บรรทัดห่าง โรแมนติก</div></div>
+            <div class="lc-tag" style="background:#be185d">วาย</div>
+          </div>
+          <div class="layout-card" id="lcard-sweetgirl" onclick="applyLayoutCard('sweetgirl',this)">
+            <div class="lc-preview" style="background:#fdf4ff"><div class="lc-drop" style="background:#d946ef"></div><div class="lc-line" style="width:82%;background:#e879f9"></div></div>
+            <div class="lc-info"><div class="lc-name">🌸 Sweet Girl</div><div class="lc-desc">Charm สีม่วงชมพู Drop Cap หวาน</div></div>
+            <div class="lc-tag" style="background:#d946ef">สาวน่ารัก</div>
+          </div>
+          <div class="layout-card" id="lcard-fancy" onclick="applyLayoutCard('fancy',this)">
+            <div class="lc-preview" style="background:#fffbeb"><div class="lc-drop" style="background:#b45309"></div><div class="lc-line" style="width:84%;background:#d97706"></div></div>
+            <div class="lc-info"><div class="lc-name">✨ Fancy Gold</div><div class="lc-desc">Noto Serif สีทอง หรูหรา</div></div>
+            <div class="lc-tag" style="background:#b45309">แฟนซี</div>
+          </div>
+          <div class="layout-card" id="lcard-kidsfun" onclick="applyLayoutCard('kidsfun',this)">
+            <div class="lc-preview" style="background:#f0fdf4"><div class="lc-line" style="width:75%;height:4px;background:#059669"></div><div class="lc-line" style="width:85%;height:4px;background:#34d399"></div></div>
+            <div class="lc-info"><div class="lc-name">🎉 Kids Fun</div><div class="lc-desc">ตัวใหญ่ 20px สีเขียว สดใส</div></div>
+            <div class="lc-tag" style="background:#059669">เด็กสนุก</div>
+          </div>
+          <div class="layout-card" id="lcard-horror" onclick="applyLayoutCard('horror',this)">
+            <div class="lc-preview" style="background:#1a0505"><div class="lc-line" style="width:90%;background:#7f1d1d"></div><div class="lc-line" style="width:82%;background:#991b1b"></div></div>
+            <div class="lc-info"><div class="lc-name">💀 Horror Dark</div><div class="lc-desc">Noto Serif แดงเลือด ตัวแน่น</div></div>
+            <div class="lc-tag" style="background:#7f1d1d">สยองขวัญ</div>
+          </div>
+          <div class="layout-card" id="lcard-wuxia" onclick="applyLayoutCard('wuxia',this)">
+            <div class="lc-preview" style="background:#fef9ec"><div class="lc-line" style="width:88%;background:#92400e"></div><div class="lc-line" style="width:80%;background:#b45309"></div></div>
+            <div class="lc-info"><div class="lc-name">龍 Wuxia</div><div class="lc-desc">Noto Serif แดงมังกร กำลังภายใน</div></div>
+            <div class="lc-tag" style="background:#92400e">กำลังภายใน</div>
+          </div>
+          <div class="layout-card" id="lcard-isekai" onclick="applyLayoutCard('isekai',this)">
+            <div class="lc-preview" style="background:#eff6ff"><div class="lc-line" style="width:90%;background:#1d4ed8"></div><div class="lc-line" style="width:80%;background:#3b82f6"></div></div>
+            <div class="lc-info"><div class="lc-name">🌀 Isekai</div><div class="lc-desc">Kanit ฟ้าสว่าง อนิเมะสไตล์ Isekai</div></div>
+            <div class="lc-tag" style="background:#1d4ed8">Isekai</div>
+          </div>
+          <div class="layout-card" id="lcard-bl_classic" onclick="applyLayoutCard('bl_classic',this)">
+            <div class="lc-preview" style="background:#eff6ff"><div class="lc-line" style="width:85%;background:#1e3a5f"></div><div class="lc-line" style="width:78%;background:#2563eb"></div></div>
+            <div class="lc-info"><div class="lc-name">💙 BL Classic</div><div class="lc-desc">Sarabun น้ำเงินเข้ม สะอาด</div></div>
+            <div class="lc-tag" style="background:#1e3a5f">BL</div>
+          </div>
+          <div class="layout-card" id="lcard-cozy" onclick="applyLayoutCard('cozy',this)">
+            <div class="lc-preview"><div class="lc-drop" style="background:#065f46"></div><div class="lc-line" style="width:82%"></div><div class="lc-line" style="width:88%"></div></div>
+            <div class="lc-info"><div class="lc-name">☕ Cozy</div><div class="lc-desc">อบอุ่น drop cap ขอบกว้าง สบายตา</div></div>
+            <div class="lc-tag">Cozy</div>
+          </div>
+          <div class="layout-card" id="lcard-light_novel" onclick="applyLayoutCard('light_novel',this)">
+            <div class="lc-preview" style="background:#f5f3ff"><div class="lc-line" style="width:86%;background:#7c3aed"></div><div class="lc-line" style="width:80%;background:#a78bfa"></div></div>
+            <div class="lc-info"><div class="lc-name">📗 Light Novel</div><div class="lc-desc">Kanit สีม่วง ชิดซ้าย สไตล์ญี่ปุ่น</div></div>
+            <div class="lc-tag" style="background:#7c3aed">LN</div>
+          </div>
+          <div class="layout-card" id="lcard-manhwa" onclick="applyLayoutCard('manhwa',this)">
+            <div class="lc-preview" style="background:#f0f9ff"><div class="lc-line" style="width:88%;background:#0891b2"></div><div class="lc-line" style="width:84%;background:#38bdf8"></div></div>
+            <div class="lc-info"><div class="lc-name">📺 Manhwa</div><div class="lc-desc">Mitr สีฟ้า ขอบแคบ อ่านเร็ว</div></div>
+            <div class="lc-tag" style="background:#0891b2">Manhwa</div>
+          </div>
+          <div class="layout-card" id="lcard-elegant_serif" onclick="applyLayoutCard('elegant_serif',this)">
+            <div class="lc-preview"><div class="lc-drop" style="background:#4338ca"></div><div class="lc-line" style="width:78%"></div><div class="lc-line" style="width:84%"></div></div>
+            <div class="lc-info"><div class="lc-name">✨ Elegant Serif</div><div class="lc-desc">Noto Serif กรมท่า ขอบกว้าง หรูหรา</div></div>
+            <div class="lc-tag" style="background:#1e1b4b">Serif</div>
+          </div>
+          <div class="layout-card" id="lcard-dramatic" onclick="applyLayoutCard('dramatic',this)">
+            <div class="lc-preview"><div class="lc-drop" style="background:#dc2626"></div><div class="lc-line" style="width:80%"></div><div class="lc-line" style="width:86%"></div></div>
+            <div class="lc-info"><div class="lc-name">🎭 Dramatic</div><div class="lc-desc">Noto Serif แดงเข้ม drop cap เร้าใจ</div></div>
+            <div class="lc-tag" style="background:#7f1d1d">Drama</div>
+          </div>
+          <div class="layout-card" id="lcard-academic" onclick="applyLayoutCard('academic',this)">
+            <div class="lc-preview"><div class="lc-line" style="width:84%"></div><div class="lc-line" style="width:80%"></div></div>
+            <div class="lc-info"><div class="lc-name">🎓 Academic</div><div class="lc-desc">Sarabun น้ำเงินเข้ม ขอบสมมาตร</div></div>
+            <div class="lc-tag">Acad</div>
+          </div>
+          <div class="layout-card" id="lcard-flash_fiction" onclick="applyLayoutCard('flash_fiction',this)">
+            <div class="lc-preview"><div class="lc-line" style="width:70%;margin:0 auto"></div><div class="lc-line" style="width:60%;margin:2px auto 0"></div></div>
+            <div class="lc-info"><div class="lc-name">⚡ Flash Fiction</div><div class="lc-desc">Prompt กึ่งกลาง ขอบกว้างมาก</div></div>
+            <div class="lc-tag">Flash</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-faint);line-height:1.6;padding:4px 6px;background:var(--panel-bg);border-radius:4px" id="layoutDesc">นิยายมาตรฐาน: Drop Cap, indent, justify</div>
+      </div>
+    </div>
+
+    <!-- ── รูปแบบ: การเน้นข้อความ & การจัด ── -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        ✏️ การเน้นข้อความ & การจัด
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+        <label style="margin-bottom:6px">คลุมข้อความในช่องแก้ไข แล้วคลิกสไตล์</label>
+        <div class="format-bar" style="flex-direction:column;gap:4px;margin-bottom:12px;">
+          <button class="fmt-btn" style="text-align:left;font-style:italic;border-left:3px solid var(--gold)" onclick="wrapSelectedText('quote')">« คำพูด / Quote »</button>
+          <button class="fmt-btn" style="text-align:left;font-weight:700;color:var(--accent)" onclick="wrapSelectedText('boldem')">✦ เน้นสำคัญ (Bold+Color)</button>
+          <button class="fmt-btn" style="text-align:left;background:rgba(201,162,39,0.15)" onclick="wrapSelectedText('highlight')">▶ Highlight ทอง</button>
+          <button class="fmt-btn" style="text-align:left;font-family:monospace;font-size:11px" onclick="wrapSelectedText('cmd')">[ คำสั่ง / Term ]</button>
+          <button class="fmt-btn" style="text-align:left;font-style:italic;color:var(--ink-muted)" onclick="wrapSelectedText('em')">~ เน้นเบา (Italic muted)</button>
+        </div>
+        <label>การจัดวางข้อความ</label>
+        <div class="radio-group">
+          <label class="radio-option"><input type="radio" name="align" value="justify" checked onchange="setTextAlign('justify')"> จัดชิดทั้งสองด้าน</label>
+          <label class="radio-option"><input type="radio" name="align" value="left" onchange="setTextAlign('left')"> ชิดซ้าย</label>
+          <label class="radio-option"><input type="radio" name="align" value="center" onchange="setTextAlign('center')"> กึ่งกลาง</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── รูปแบบ: ตัวเลือกหน้า & ขอบ ── -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+        📐 ตัวเลือกหน้า & ขอบ
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+        <div class="toggle-row">
+          <span class="toggle-label">แสดงส่วนหัวหน้า</span>
+          <label class="toggle"><input type="checkbox" id="showHeader" checked onchange="updatePreview()"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">แสดงเลขหน้า</span>
+          <label class="toggle"><input type="checkbox" id="showPageNum" checked onchange="updatePreview()"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="pageNumStyleRow" style="margin-bottom:10px">
+          <label style="margin-bottom:6px">รูปแบบเลขหน้า</label>
+          <div class="page-num-style-row">
+            <button class="active" id="pnStyleBtn0" onclick="setPageNumStyle('dash',this)" title="— 1 —">— n —</button>
+            <button id="pnStyleBtn1" onclick="setPageNumStyle('plain',this)" title="1">1</button>
+            <button id="pnStyleBtn2" onclick="setPageNumStyle('dot',this)" title="· 1 ·">· n ·</button>
+            <button id="pnStyleBtn3" onclick="setPageNumStyle('thai',this)" title="๑">๑ ไทย</button>
+            <button id="pnStyleBtn4" onclick="setPageNumStyle('roman',this)" title="i, ii, iii">i,ii Roman</button>
+          </div>
+          <label style="margin-bottom:4px;margin-top:6px">ขนาดเลขหน้า</label>
+          <div class="slider-row">
+            <input type="range" min="8" max="18" value="11" id="pageNumSize" oninput="updatePageNumSize(this.value)">
+            <div class="slider-val" id="pageNumSizeVal">11px</div>
+          </div>
+          <div class="pgnum-adv-row" style="margin-top:6px">
+            <label>เริ่มนับที่หน้า</label>
+            <input type="number" id="pageNumStart" min="1" value="1" oninput="updatePreview()" title="เลขหน้าแรกจะเท่ากับค่านี้">
+          </div>
+          <div style="font-size:11px;color:var(--ink-muted);margin-bottom:6px">ซ่อนเลขหน้าในบางประเภทหน้า</div>
+          <div class="pgnum-hide-row">
+            <label class="pgnum-hide-item"><input type="checkbox" id="hideNumCover" checked onchange="updatePreview()"> ซ่อนในหน้าปก</label>
+            <label class="pgnum-hide-item"><input type="checkbox" id="hideNumTitle" checked onchange="updatePreview()"> ซ่อนในหน้าชื่อเรื่อง</label>
+            <label class="pgnum-hide-item"><input type="checkbox" id="hideNumSpecial" onchange="updatePreview()"> ซ่อนในหน้าพิเศษ (TOC, คำนำ)</label>
+            <label class="pgnum-hide-item"><input type="checkbox" id="hideNumFirstChapter" onchange="updatePreview()"> ซ่อนในหน้าแรกของแต่ละบท</label>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Drop Cap (ตัวอักษรขยาย)</span>
+          <label class="toggle"><input type="checkbox" id="showDropCap" checked onchange="toggleDropCap()"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="dropCapSizeRow" style="margin-bottom:10px">
+          <label>ขนาด Drop Cap</label>
+          <div class="slider-row">
+            <input type="range" min="28" max="120" value="52" id="dropCapSize" oninput="updateDropCapSize()">
+            <div class="slider-val" id="dropCapSizeVal">52px</div>
+          </div>
+          <label>ฟอนต์ Drop Cap</label>
+          <select id="dropCapFont" onchange="updateDropCapSize()" style="margin-bottom:8px">
+            <option value="Playfair Display">Playfair Display</option>
+            <option value="Sarabun">Sarabun</option>
+            <option value="Kanit">Kanit</option>
+            <option value="Prompt">Prompt</option>
+            <option value="Noto Serif Thai">Noto Serif Thai</option>
+            <option value="Charm">Charm</option>
+          </select>
+          <label>สี Drop Cap</label>
+          <div class="color-custom" style="margin-bottom:8px">
+            <input type="color" id="dropCapColor" value="#8b4513" onchange="updateDropCapSize()" title="เลือกสี Drop Cap">
+            <span style="font-size:12px;color:var(--ink-muted)">กำหนดสีเอง</span>
+            <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px" onclick="document.getElementById('dropCapColor').value='#8b4513';updateDropCapSize()">รีเซ็ต</button>
+          </div>
+        </div>
+        <label>ขอบบน-ล่าง</label>
+        <div class="slider-row">
+          <input type="range" min="32" max="80" value="56" id="marginV" oninput="updateMargins()">
+          <div class="slider-val" id="marginVVal">56px</div>
+        </div>
+        <label>ขอบซ้าย-ขวา</label>
+        <div class="slider-row">
+          <input type="range" min="32" max="80" value="52" id="marginH" oninput="updateMargins()">
+          <div class="slider-val" id="marginHVal">52px</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── รูปแบบ: ลวดลายกระดาษ ── -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>
+        🗒️ ลวดลายกระดาษ (Texture)
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+        <div class="texture-grid" id="textureGrid">
+          <div class="tx-thumb active" data-tex="none" onclick="setPaperTexture('none',this)" title="กระดาษขาวเรียบ"><div class="tx-bg" style="background:#fffef9"></div><span>ไม่มี</span></div>
+          <div class="tx-thumb" data-tex="cream" onclick="setPaperTexture('cream',this)" title="กระดาษครีม"><div class="tx-bg" style="background:linear-gradient(135deg,#fdf8ed 25%,#f7f0df 50%,#fdf8ed 75%)"></div><span>Cream</span></div>
+          <div class="tx-thumb" data-tex="aged" onclick="setPaperTexture('aged',this)" title="กระดาษเก่า"><div class="tx-bg" style="background:#f5ead6"></div><span>Aged</span></div>
+          <div class="tx-thumb" data-tex="lines" onclick="setPaperTexture('lines',this)" title="กระดาษมีเส้น"><div class="tx-bg" style="background:#fefefe;background-image:repeating-linear-gradient(transparent,transparent 23px,#c8d8e8 23px,#c8d8e8 24px)"></div><span>Lines</span></div>
+          <div class="tx-thumb" data-tex="grid" onclick="setPaperTexture('grid',this)" title="กระดาษตาราง"><div class="tx-bg" style="background:#fefefe;background-image:linear-gradient(rgba(180,200,220,0.4) 1px,transparent 1px),linear-gradient(90deg,rgba(180,200,220,0.4) 1px,transparent 1px);background-size:20px 20px"></div><span>Grid</span></div>
+          <div class="tx-thumb" data-tex="dot" onclick="setPaperTexture('dot',this)" title="กระดาษจุด"><div class="tx-bg" style="background:#fefefe;background-image:radial-gradient(circle,rgba(100,140,180,0.35) 1px,transparent 1px);background-size:14px 14px"></div><span>Dot</span></div>
+          <div class="tx-thumb" data-tex="linen" onclick="setPaperTexture('linen',this)" title="ผ้าลินิน"><div class="tx-bg" style="background:#f8f4ee;background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(160,140,100,0.08) 3px,rgba(160,140,100,0.08) 4px),repeating-linear-gradient(90deg,transparent,transparent 3px,rgba(160,140,100,0.08) 3px,rgba(160,140,100,0.08) 4px)"></div><span>Linen</span></div>
+          <div class="tx-thumb" data-tex="crosshatch" onclick="setPaperTexture('crosshatch',this)" title="ลายตาราง diagonal"><div class="tx-bg" style="background:#fefefe;background-image:repeating-linear-gradient(45deg,rgba(180,180,180,0.2) 0,rgba(180,180,180,0.2) 1px,transparent 0,transparent 50%),repeating-linear-gradient(135deg,rgba(180,180,180,0.2) 0,rgba(180,180,180,0.2) 1px,transparent 0,transparent 50%);background-size:10px 10px"></div><span>Crosshatch</span></div>
+          <div class="tx-thumb" data-tex="marble" onclick="setPaperTexture('marble',this)" title="กระดาษหินอ่อน"><div class="tx-bg" style="background:linear-gradient(120deg,#f0ece4 0%,#e8e2d8 20%,#ede8e0 40%,#e4dfd5 60%,#ede8e0 80%,#f0ece4 100%)"></div><span>Marble</span></div>
+          <div class="tx-thumb" data-tex="parchment" onclick="setPaperTexture('parchment',this)" title="หนังสัตว์/ม้วนหนังสือ"><div class="tx-bg" style="background:radial-gradient(ellipse at 20% 20%,#f5e6c8,#e8d4a8 40%,#dcc890 70%,#c9b578)"></div><span>Parchment</span></div>
+          <div class="tx-thumb" data-tex="dark" onclick="setPaperTexture('dark',this)" title="กระดาษดำ/กลางคืน"><div class="tx-bg" style="background:#1e1a16"></div><span style="color:rgba(255,255,255,0.7)">Dark</span></div>
+          <div class="tx-thumb" data-tex="sepia" onclick="setPaperTexture('sepia',this)" title="Sepia tone"><div class="tx-bg" style="background:linear-gradient(160deg,#f2e4c8,#e8d5a8,#f0e2bc)"></div><span>Sepia</span></div>
+          <!-- แนวใหม่ -->
+          <div class="tx-thumb" data-tex="sakura" onclick="setPaperTexture('sakura',this)" title="ซากุระ"><div class="tx-bg" style="background:linear-gradient(135deg,#fff0f5,#ffd6e8)"></div><span style="color:#be185d">🌸 Sakura</span></div>
+          <div class="tx-thumb" data-tex="pastel" onclick="setPaperTexture('pastel',this)" title="พาสเทล"><div class="tx-bg" style="background:linear-gradient(160deg,#fef3c7,#fde8f0,#e8f0fe)"></div><span>🎨 Pastel</span></div>
+          <div class="tx-thumb" data-tex="anime" onclick="setPaperTexture('anime',this)" title="อนิเมะ"><div class="tx-bg" style="background:linear-gradient(135deg,#f8f4ff,#f0e8ff)"></div><span style="color:#7c3aed">✨ Anime</span></div>
+          <div class="tx-thumb" data-tex="moe" onclick="setPaperTexture('moe',this)" title="น่ารัก"><div class="tx-bg" style="background:linear-gradient(135deg,#fff5f8,#ffeef6)"></div><span style="color:#ec4899">♥ Moe</span></div>
+          <div class="tx-thumb" data-tex="shonen" onclick="setPaperTexture('shonen',this)" title="โชเน็น"><div class="tx-bg" style="background:#f0f4ff"></div><span style="color:#1d4ed8">⚡ Shonen</span></div>
+          <div class="tx-thumb" data-tex="galaxy" onclick="setPaperTexture('galaxy',this)" title="กาแล็กซี่"><div class="tx-bg" style="background:linear-gradient(160deg,#0f0c29,#302b63,#24243e)"></div><span style="color:#a78bfa">🌌 Galaxy</span></div>
+          <div class="tx-thumb" data-tex="nightsky" onclick="setPaperTexture('nightsky',this)" title="ท้องฟ้ากลางคืน"><div class="tx-bg" style="background:linear-gradient(180deg,#020817,#1a0a2e)"></div><span style="color:#818cf8">🌃 Night</span></div>
+          <div class="tx-thumb" data-tex="vintage_pink" onclick="setPaperTexture('vintage_pink',this)" title="วินเทจชมพู"><div class="tx-bg" style="background:linear-gradient(135deg,#fdf2f8,#fce7f3)"></div><span style="color:#be185d">🌷 V.Pink</span></div>
+          <div class="tx-thumb" data-tex="mint" onclick="setPaperTexture('mint',this)" title="มิ้นท์"><div class="tx-bg" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7)"></div><span style="color:#16a34a">🍃 Mint</span></div>
+          <div class="tx-thumb" data-tex="lavender" onclick="setPaperTexture('lavender',this)" title="ลาเวนเดอร์"><div class="tx-bg" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe)"></div><span style="color:#7c3aed">💜 Lavender</span></div>
+          <div class="tx-thumb" data-tex="wuxia_paper" onclick="setPaperTexture('wuxia_paper',this)" title="กระดาษจีน"><div class="tx-bg" style="background:linear-gradient(135deg,#fef9ec,#fdf0d0)"></div><span style="color:#92400e">龍 Wuxia</span></div>
+          <div class="tx-thumb" data-tex="horror_dark" onclick="setPaperTexture('horror_dark',this)" title="สยองขวัญ"><div class="tx-bg" style="background:linear-gradient(160deg,#0a0a0a,#1a0505)"></div><span style="color:#ef4444">💀 Horror</span></div>
+          <div class="tx-thumb" data-tex="custom_tex" onclick="setPaperTexture('custom_tex',this);document.getElementById('customTexUpload').click()" title="อัปโหลดลายกระดาษเอง"><div class="tx-bg" style="background:repeating-linear-gradient(45deg,#eee,#eee 5px,#fff 5px,#fff 10px)"></div><span style="color:#059669">📁 Custom</span></div>
+          <input type="file" id="customTexUpload" accept="image/*" style="display:none" onchange="loadCustomTexture(this)">
+        </div>
+        <label>ความเข้มลวดลาย</label>
+        <div class="slider-row">
+          <input type="range" min="10" max="100" value="100" id="textureOpacity" oninput="updateTextureOpacity(this.value)">
+          <div class="slider-val" id="textureOpacityVal">100%</div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:2px">ลวดลายกระดาษใช้กับทุกหน้าเนื้อเรื่อง</div>
+      </div>
+    </div>
+
+    <!-- ── รูปแบบ: ขอบกระดาษตกแต่ง ── -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+        🖼️ ขอบกระดาษตกแต่ง
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+        <div class="border-pattern-grid" id="borderPatternGrid">
+          <div class="bp-thumb active" data-pattern="none" onclick="setPageBorderPattern('none',this)" title="ไม่มีขอบ"><span>ไม่มี</span></div>
+          <div class="bp-thumb" data-pattern="classic" onclick="setPageBorderPattern('classic',this)" title="Classic"><div class="bp-preview" style="border:1.5px solid #8b4513;box-sizing:border-box"></div><div class="bp-preview" style="inset:5px;position:absolute;border:0.5px solid #8b4513;box-sizing:border-box"></div><span>Classic</span></div>
+          <div class="bp-thumb" data-pattern="double" onclick="setPageBorderPattern('double',this)" title="Double"><div class="bp-preview" style="border:2px solid #8b4513;box-sizing:border-box"></div><div class="bp-preview" style="inset:5px;position:absolute;border:2px solid #8b4513;box-sizing:border-box"></div><span>Double</span></div>
+          <div class="bp-thumb" data-pattern="vintage" onclick="setPageBorderPattern('vintage',this)" title="Vintage"><div class="bp-preview" style="border:1.5px solid #8b4513;border-radius:3px;box-sizing:border-box"></div><span>Vintage</span></div>
+          <div class="bp-thumb" data-pattern="shadow" onclick="setPageBorderPattern('shadow',this)" title="Shadow"><div class="bp-preview" style="border:1.5px solid #8b4513;box-shadow:inset 0 0 8px rgba(139,69,19,0.2);box-sizing:border-box"></div><span>Shadow</span></div>
+          <div class="bp-thumb" data-pattern="ornate" onclick="setPageBorderPattern('ornate',this)" title="Ornate"><div class="bp-preview" style="border:1.5px solid #c9a227;box-sizing:border-box"></div><span style="color:#c9a227">✦ Ornate</span></div>
+          <div class="bp-thumb" data-pattern="minimal" onclick="setPageBorderPattern('minimal',this)" title="Minimal"><div style="position:absolute;left:3px;right:3px;top:3px;border-top:2px solid #8b4513"></div><div style="position:absolute;left:3px;right:3px;bottom:3px;border-bottom:2px solid #8b4513"></div><span>Minimal</span></div>
+          <div class="bp-thumb" data-pattern="corner" onclick="setPageBorderPattern('corner',this)" title="Corner"><div style="position:absolute;inset:3px;border-top:2px solid #8b4513;border-left:2px solid #8b4513"></div><div style="position:absolute;inset:3px;border-bottom:2px solid #8b4513;border-right:2px solid #8b4513"></div><span>Corner</span></div>
+          <div class="bp-thumb" data-pattern="floral" onclick="setPageBorderPattern('floral',this)" title="Floral"><div class="bp-preview" style="border:1px dashed #c9a227;box-sizing:border-box;border-radius:2px"></div><span style="color:#c9a227">✿ Floral</span></div>
+          <div class="bp-thumb" data-pattern="wave" onclick="setPageBorderPattern('wave',this)" title="Wave"><div style="position:absolute;left:3px;right:3px;top:4px;border-top:2.5px dotted #8b4513"></div><div style="position:absolute;left:3px;right:3px;bottom:4px;border-bottom:2.5px dotted #8b4513"></div><span>Wave</span></div>
+          <div class="bp-thumb" data-pattern="triple" onclick="setPageBorderPattern('triple',this)" title="Triple"><div class="bp-preview" style="border:3px double #8b4513;outline:1px solid #8b4513;outline-offset:-6px;box-sizing:border-box"></div><span>Triple</span></div>
+          <!-- แนวอนิเมะ/วาย/แฟนซี -->
+          <div class="bp-thumb" data-pattern="kawaii" onclick="setPageBorderPattern('kawaii',this)" title="Kawaii"><div class="bp-preview" style="border:1.5px solid #ec4899;border-radius:6px;box-sizing:border-box"></div><span style="color:#ec4899">♥ Kawaii</span></div>
+          <div class="bp-thumb" data-pattern="sparkle_border" onclick="setPageBorderPattern('sparkle_border',this)" title="Sparkle"><div class="bp-preview" style="border:1px solid #7c3aed;box-sizing:border-box"></div><span style="color:#7c3aed">✦ Sparkle</span></div>
+          <div class="bp-thumb" data-pattern="manga" onclick="setPageBorderPattern('manga',this)" title="Manga Panel"><div class="bp-preview" style="border:3px solid #1a1a2e;box-sizing:border-box"></div><span>Manga</span></div>
+          <div class="bp-thumb" data-pattern="wuxia_border" onclick="setPageBorderPattern('wuxia_border',this)" title="Wuxia"><div class="bp-preview" style="border:1.5px solid #dc2626;box-sizing:border-box"></div><span style="color:#dc2626">龍 Wuxia</span></div>
+          <div class="bp-thumb" data-pattern="rose_border" onclick="setPageBorderPattern('rose_border',this)" title="Rose"><div class="bp-preview" style="border:1px solid #be123c;box-sizing:border-box"></div><span>🌹 Rose</span></div>
+          <div class="bp-thumb" data-pattern="star_border" onclick="setPageBorderPattern('star_border',this)" title="Star"><div class="bp-preview" style="border:1px solid #d97706;box-sizing:border-box"></div><span style="color:#d97706">★ Star</span></div>
+          <div class="bp-thumb" data-pattern="custom" onclick="setPageBorderPattern('custom',this)" title="CSS เอง"><div style="position:absolute;inset:3px;border:1.5px solid #c9a227;box-sizing:border-box"></div><span style="color:#c9a227;z-index:2;position:relative">✎ CSS</span></div>
+          <div class="bp-thumb" data-pattern="custom_img_border" onclick="setPageBorderPattern('custom_img_border',this);document.getElementById('customBorderImgUpload').click()" title="อัปโหลดรูป"><div style="position:absolute;inset:3px;border:1.5px dashed #059669;box-sizing:border-box"></div><span style="color:#059669;z-index:2;position:relative">📁 อัป</span></div>
+          <input type="file" id="customBorderImgUpload" accept="image/*" style="display:none" onchange="loadCustomBorderImage(this)">
+        </div>
+        <div id="customBorderFields" style="display:none;margin-bottom:8px;padding:8px;background:var(--panel-bg);border-radius:6px;border:1px solid var(--border)">
+          <label style="margin-bottom:4px">CSS กรอบ (กำหนดเอง)</label>
+          <textarea id="customBorderCSS" placeholder="border:2px solid #c9a227; border-radius:8px;" style="min-height:56px;font-size:11px;font-family:monospace;margin-bottom:6px" oninput="applyCustomBorderPreview()"></textarea>
+          <button class="btn btn-primary" style="padding:4px 12px;font-size:11px" onclick="applyPageBorders()">✓ ใช้งาน</button>
+        </div>
+        <label>สีขอบ</label>
+        <div class="color-custom" style="margin-bottom:8px">
+          <input type="color" id="borderColor" value="#8b4513" oninput="updateBorderColor(this.value)">
+          <span style="font-size:12px;color:var(--ink-muted)">เลือกสีขอบ</span>
+        </div>
+        <label>ความกว้างขอบ (offset จากขอบหน้า)</label>
+        <div class="slider-row">
+          <input type="range" min="2" max="60" value="10" id="borderThickness" oninput="updateBorderThickness(this.value)">
+          <div class="slider-val" id="borderThicknessVal">10px</div>
+        </div>
+        <label>ความหนาเส้นขอบ</label>
+        <div class="slider-row">
+          <input type="range" min="1" max="12" value="2" id="borderLineWeight" oninput="updateBorderLineWeight(this.value)">
+          <div class="slider-val" id="borderLineWeightVal">2px</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 🎭 Mood / Theme Palette ── -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+        🎭 Mood / Theme Palette
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+        <div style="font-size:11px;color:var(--ink-muted);margin-bottom:8px">เปลี่ยนสีสำเนียง + ฟอนต์ + กระดาษทีเดียว</div>
+        <div class="mood-palette-grid">
+          <button class="mood-btn" style="background:linear-gradient(135deg,#2a0a14,#7a2040)" onclick="applyMoodPalette('darkromance',this)">
+            <span class="mb-name">🌹 Dark Romance</span>
+            <span class="mb-desc">Charm · Rose · Cream</span>
+          </button>
+          <button class="mood-btn" style="background:linear-gradient(135deg,#064e3b,#1e5c38)" onclick="applyMoodPalette('cozyfantasy',this)">
+            <span class="mb-name">🍂 Cozy Fantasy</span>
+            <span class="mb-desc">Sarabun · Forest · Parchment</span>
+          </button>
+          <button class="mood-btn" style="background:linear-gradient(135deg,#1a1a2e,#16213e)" onclick="applyMoodPalette('thriller',this)">
+            <span class="mb-name">🔪 Thriller</span>
+            <span class="mb-desc">Mitr · Navy · Grid</span>
+          </button>
+          <button class="mood-btn" style="background:linear-gradient(135deg,#0e001e,#1a0040)" onclick="applyMoodPalette('animelight',this)">
+            <span class="mb-name">✨ Anime</span>
+            <span class="mb-desc">Kanit · Purple · Anime</span>
+          </button>
+          <button class="mood-btn" style="background:linear-gradient(135deg,#fff0f5,#ffd6e8);color:#be185d" onclick="applyMoodPalette('sweetgirl',this)">
+            <span class="mb-name">🌸 Sweet Girl</span>
+            <span class="mb-desc">Charm · Pink · Sakura</span>
+          </button>
+          <button class="mood-btn" style="background:linear-gradient(135deg,#1a1000,#3d2800)" onclick="applyMoodPalette('fantasygold',this)">
+            <span class="mb-name">⚔ Fantasy Gold</span>
+            <span class="mb-desc">Noto Serif · Gold · Aged</span>
+          </button>
+          <button class="mood-btn" style="background:linear-gradient(135deg,#000,#1a0000)" onclick="applyMoodPalette('horror',this)">
+            <span class="mb-name">💀 Horror</span>
+            <span class="mb-desc">Mitr · Red · Dark</span>
+          </button>
+          <button class="mood-btn" style="background:linear-gradient(135deg,#f5ede0,#ddd0bc);color:#4a3520" onclick="applyMoodPalette('classiclit',this)">
+            <span class="mb-name">📚 Classic Lit</span>
+            <span class="mb-desc">Noto Serif · Brown · Ivory</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 🌙 Dark/Light Paper Mode ── -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        🌙 สีกระดาษ (อ่านกลางคืน)
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+        <div style="font-size:11px;color:var(--ink-muted);margin-bottom:8px">ปรับสีพื้นกระดาษเพื่ออ่านสบายตา</div>
+        <div class="paper-mode-row">
+          <button class="paper-mode-btn active" id="pmb-white" onclick="setPaperMode('white',this)">
+            <div class="pmb-swatch" style="background:#fffef9"></div>White
+          </button>
+          <button class="paper-mode-btn" id="pmb-cream" onclick="setPaperMode('cream',this)">
+            <div class="pmb-swatch" style="background:#fdf8ed"></div>Cream
+          </button>
+          <button class="paper-mode-btn" id="pmb-warm" onclick="setPaperMode('warm',this)">
+            <div class="pmb-swatch" style="background:#f5e9d0"></div>Warm
+          </button>
+          <button class="paper-mode-btn" id="pmb-night" onclick="setPaperMode('night',this)">
+            <div class="pmb-swatch" style="background:#1e1a16;border-color:#444"></div><span style="color:#aaa">Night</span>
+          </button>
+          <button class="paper-mode-btn" id="pmb-sepia" onclick="setPaperMode('sepia',this)">
+            <div class="pmb-swatch" style="background:#f2e4c8"></div>Sepia
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 💾 Auto-backup หลายเวอร์ชัน ── -->
+    <div class="sidebar-section collapsed">
+      <div class="sidebar-title" onclick="toggleSection(this)">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        💾 ประวัติ Auto-Backup (5 เวอร์ชัน)
+        <span class="collapse-arrow">▼</span>
+      </div>
+      <div class="sidebar-body">
+        <div class="backup-list" id="backupList">
+          <div style="font-size:11px;color:var(--ink-faint);text-align:center;padding:12px">ยังไม่มี Checkpoint</div>
+        </div>
+        <button class="btn btn-ghost" style="width:100%;justify-content:center;font-size:11px" onclick="createManualBackup()">
+          📷 บันทึก Checkpoint ตอนนี้
+        </button>
+        <div style="font-size:10px;color:var(--ink-faint);margin-top:6px;line-height:1.6">Auto-backup ทุก 5 นาที · เก็บ 5 เวอร์ชันล่าสุด</div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+  <div class="resize-handle" id="leftResizeHandle" title="ลากเพื่อปรับขนาดแผงซ้าย">
+    <div class="panel-collapse-btn" id="leftCollapseBtn" onclick="togglePanelCollapse('left')">◀</div>
+  </div>
+
+  <!-- Preview area -->
+  <div class="preview-col" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+    <!-- ── V3 View Mode Toolbar ── -->
+    <div class="view-toolbar" style="display:flex;align-items:center;gap:4px;padding:5px 12px;background:#141211;border-bottom:1px solid #2a2724;flex-shrink:0;flex-wrap:wrap;">
+      <!-- View modes -->
+      <div style="display:flex;align-items:center;gap:3px;flex-shrink:0">
+        <button class="view-btn" id="vbScroll" onclick="setViewMode('scroll',this)" title="Scroll ต่อเนื่อง">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Scroll
+        </button>
+        <button class="view-btn active" id="vbSingle" onclick="setViewMode('single',this)" title="หน้าเดียว">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="1"/></svg>
+          Single
+        </button>
+        <button class="view-btn" id="vbSpread" onclick="setViewMode('spread',this)" title="คู่หน้า">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="9" height="18" rx="1"/><rect x="13" y="3" width="9" height="18" rx="1"/></svg>
+          Spread
+        </button>
+        <button class="view-btn" id="vbOverview" onclick="toggleOverviewMode(this)" title="ภาพรวม">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="11" rx="1"/><rect x="14" y="2" width="8" height="11" rx="1"/><rect x="2" y="16" width="8" height="6" rx="1"/><rect x="14" y="16" width="8" height="6" rx="1"/></svg>
+          ภาพรวม
+        </button>
+      </div>
+
+      <div style="width:1px;height:20px;background:#2a2724;margin:0 4px;flex-shrink:0"></div>
+
+      <!-- Zoom -->
+      <div style="display:flex;align-items:center;gap:3px;flex-shrink:0">
+        <button class="zoom-btn" onclick="adjustZoom(-10)" style="width:22px;height:22px;border-radius:4px;border:1px solid #2e2b28;background:transparent;color:#7a7570;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+        <div class="view-zoom-val rb-zoom-val" id="zoomVal" style="min-width:38px;text-align:center;font-size:11px;font-weight:700">100%</div>
+        <button class="zoom-btn" onclick="adjustZoom(+10)" style="width:22px;height:22px;border-radius:4px;border:1px solid #2e2b28;background:transparent;color:#7a7570;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+      </div>
+
+      <div style="width:1px;height:20px;background:#2a2724;margin:0 4px;flex-shrink:0"></div>
+
+      <!-- Page counter & jump -->
+      <span id="pageCountInfo" style="font-size:11px;color:#5a5550;font-weight:600;white-space:nowrap;"></span>
+      <select class="view-page-select" id="toolbarPageSelect" onchange="toolbarJumpToPage(this.value)" title="ไปหน้า" style="background:#1e1b18;border:1px solid #2e2b28;color:#9a9590;font-size:11px;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">
+        <option value="">ไปหน้า...</option>
+      </select>
+
+      <!-- Edit hint -->
+      <div style="margin-left:auto;display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <span style="font-size:9px;color:#5a5550;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">✏️ คลิกหน้าพิมพ์ได้</span>
+      </div>
+    </div>
+
+    <!-- Preview area -->
+    <div class="preview-area mode-single" id="previewArea">
+      <!-- Floating mobile quick-edit button -->
+      <button id="mobileEditBtn" onclick="togglePanel('right');document.getElementById('rightPanelToggle').classList.toggle('active')" title="เปิด/ปิดแผงแก้ไข" style="position:fixed;bottom:80px;right:12px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:20px;box-shadow:0 4px 16px rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation">✏️</button>
+      <div class="zoom-wrap" id="zoomWrap">
+      <div class="page-label">ปกหน้า</div>
+      <!-- Cover page -->
+      <div class="page page-cover" id="pageCover">
+        <div class="cover-bg" id="coverBg"></div>
+        <div class="cover-overlay"></div>
+        <div class="cover-content">
+          <div class="cover-genre-badge" id="coverGenre">FANTASY · ADVENTURE</div>
+          <div class="cover-title-display" id="coverTitleDisplay">เงาแห่งลม</div>
+          <div class="cover-subtitle-display" id="coverSubtitleDisplay">นิยายแฟนตาซีผจญภัย</div>
+          <div class="cover-divider"></div>
+          <div class="cover-author-display">โดย <strong id="coverAuthorDisplay">ลมเย็น</strong></div>
+        </div>
+        <div class="cover-publisher-display" id="coverPublisherDisplay">สำนักพิมพ์ดาวใต้</div>
+      </div>
+
+      <div class="page-label">หน้าชื่อเรื่อง (Title Page)</div>
+      <!-- Title page -->
+      <div class="page page-inner page-title-page" id="pageTitlePage">
+        <div class="title-page-ornament">✦ ✦ ✦</div>
+        <div class="title-page-title" id="titlePageTitle">เงาแห่งลม</div>
+        <div class="title-page-subtitle" id="titlePageSubtitle">นิยายแฟนตาซีผจญภัย</div>
+        <div class="title-page-line"></div>
+        <div class="title-page-author">โดย <strong id="titlePageAuthor">ศิรินภา พรหมจักร</strong></div>
+        <div class="title-page-year" id="titlePageYear">(นามปากกา: ลมเย็น)</div>
+        <div class="title-page-publisher" id="titlePagePublisher">สำนักพิมพ์ดาวใต้ · ๒๕๖๗</div>
+      </div>
+
+      <!-- Chapter pages rendered dynamically -->
+      <div id="chapterPages"></div>
+      </div><!-- /zoom-wrap -->
+
+      <!-- Page navigation (for single/spread modes) -->
+      <div class="page-nav-bar hidden" id="pageNavBar">
+        <button class="nav-btn" id="navPrev" onclick="navPage(-1)" disabled>◀</button>
+        <div class="nav-info" id="navInfo">หน้า 1 / 1</div>
+        <button class="nav-btn" id="navNext" onclick="navPage(+1)">▶</button>
+        <div class="ifb-sep"></div>
+        <div class="nav-jump">
+          <span class="nav-jump-label">ไปหน้า</span>
+          <input type="number" id="navJumpInput" min="1" value="1" onkeydown="if(event.key==='Enter')jumpToPage()">
+          <button class="nav-jump-btn" onclick="jumpToPage()">ไป</button>
+        </div>
+        <select class="view-page-select" id="pageSelectDropdown" onchange="jumpToPageByLabel(this.value)">
+          <option value="">— เลือกหน้า —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ── V3 Mode Tabs (Writing / Book Preview / Kindle / Print) ── -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 14px;background:#141211;border-top:1px solid #2a2724;flex-shrink:0;">
+      <button class="mode-tab active" id="modeBtnWriting" onclick="switchModeTab('writing',this)" style="padding:5px 16px;border-radius:20px;border:1px solid var(--accent);background:rgba(139,69,19,0.2);color:#e8a87c;font-size:11px;font-weight:700;letter-spacing:0.04em;cursor:pointer;font-family:'Sarabun',sans-serif;display:flex;align-items:center;gap:5px;white-space:nowrap">
+        ✏️ Writing Mode
+      </button>
+      <button class="mode-tab" id="modeBtnBook" onclick="switchModeTab('book',this)" style="padding:5px 16px;border-radius:20px;border:1px solid #2e2b28;background:transparent;color:#6b6560;font-size:11px;font-weight:700;letter-spacing:0.04em;cursor:pointer;font-family:'Sarabun',sans-serif;display:flex;align-items:center;gap:5px;white-space:nowrap">
+        📖 Book Preview
+      </button>
+      <button class="mode-tab" id="modeBtnKindle" onclick="switchModeTab('kindle',this)" style="padding:5px 16px;border-radius:20px;border:1px solid #2e2b28;background:transparent;color:#6b6560;font-size:11px;font-weight:700;letter-spacing:0.04em;cursor:pointer;font-family:'Sarabun',sans-serif;display:flex;align-items:center;gap:5px;white-space:nowrap">
+        📱 Kindle Preview
+      </button>
+      <button class="mode-tab" id="modeBtnPrint" onclick="switchModeTab('print',this)" style="padding:5px 16px;border-radius:20px;border:1px solid #2e2b28;background:transparent;color:#6b6560;font-size:11px;font-weight:700;letter-spacing:0.04em;cursor:pointer;font-family:'Sarabun',sans-serif;display:flex;align-items:center;gap:5px;white-space:nowrap">
+        🖨️ Print Preview
+      </button>
+    </div>
+
+    <!-- ── V3 Statusbar ── -->
+    <div class="statusbar">
+      <div class="statusbar-pill">Words: <span id="statWords">0</span></div>
+      <div class="statusbar-sep"></div>
+      <div class="statusbar-pill">Chars: <span id="statChars">0</span></div>
+      <div class="statusbar-sep"></div>
+      <div class="statusbar-pill">Page: <span id="statPage">1/1</span></div>
+      <div class="statusbar-sep"></div>
+      <div class="statusbar-pill">A5 <span>14.8 × 21 cm</span></div>
+    </div>
+  </div>
+
+  <!-- Right resize handle -->
+  <div class="resize-handle" id="rightResizeHandle" title="ลากเพื่อปรับขนาดแผงขวา">
+    <div class="panel-collapse-btn" id="rightCollapseBtn" onclick="togglePanelCollapse('right')">▶</div>
+  </div>
+
+  <!-- Right panel: Editor -->
+  <div class="right-panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" id="ptabEditor" onclick="switchTab('editor', this)">✏️ แก้ไข</div>
+      <div class="panel-tab" id="ptabInfo" onclick="switchTab('info', this)">📊 สถิติ</div>
+    </div>
+
+    <div class="panel-body">
+      <!-- Editor tab -->
+      <div class="tab-content active" id="tab-editor">
+
+        <!-- Context: Cover page -->
+        <div class="ctx-panel" id="ctx-cover">
+          <div class="ctx-page-badge">
+            <div class="ctx-pg-num">1</div>
+            <span>หน้าปก</span>
+          </div>
+          <div class="ctx-cover-fields">
+            <label>ชื่อหนังสือ</label>
+            <input type="text" id="ctx-bookTitle" oninput="syncField('bookTitle',this.value)" placeholder="ชื่อหนังสือ...">
+            <label>นามปากกา / ผู้แต่ง</label>
+            <input type="text" id="ctx-penName" oninput="syncField('penName',this.value)" placeholder="นามปากกา...">
+            <label>แนวเรื่อง (Genre)</label>
+            <input type="text" id="ctx-genre" oninput="syncField('genre',this.value)" placeholder="FANTASY · ADVENTURE">
+            <label>คำโปรย (Subtitle)</label>
+            <input type="text" id="ctx-bookSubtitle" oninput="syncField('bookSubtitle',this.value)" placeholder="คำโปรยสั้น...">
+          </div>
+        </div>
+
+        <!-- Context: Title page -->
+        <div class="ctx-panel" id="ctx-title">
+          <div class="ctx-page-badge">
+            <div class="ctx-pg-num">2</div>
+            <span>หน้าชื่อเรื่อง</span>
+          </div>
+          <div class="ctx-cover-fields">
+            <label>ชื่อหนังสือ</label>
+            <input type="text" id="ctx2-bookTitle" oninput="syncField('bookTitle',this.value)" placeholder="ชื่อหนังสือ...">
+            <label>ชื่อจริงผู้แต่ง</label>
+            <input type="text" id="ctx2-authorName" oninput="syncField('authorName',this.value)" placeholder="ชื่อ-นามสกุล...">
+            <label>สำนักพิมพ์</label>
+            <input type="text" id="ctx2-publisher" oninput="syncField('publisher',this.value)" placeholder="ชื่อสำนักพิมพ์...">
+            <label>ปีที่พิมพ์</label>
+            <input type="text" id="ctx2-pubYear" oninput="syncField('pubYear',this.value)" placeholder="๒๕๖๗">
+          </div>
+        </div>
+
+        <!-- Context: Special page (TOC, Preface, Dedication) -->
+        <div class="ctx-panel" id="ctx-special">
+          <div class="ctx-page-badge">
+            <div class="ctx-pg-num" id="ctxSpecialNum">—</div>
+            <span id="ctxSpecialName">หน้าพิเศษ</span>
+          </div>
+          <div class="ctx-hint">
+            แก้ไขเนื้อหาหน้าพิเศษได้ที่<br><strong>แผงซ้าย → หน้าพิเศษ</strong>
+          </div>
+        </div>
+
+        <!-- Context: Chapter page (default) -->
+        <div class="ctx-panel active" id="ctx-chapter">
+          <div class="ctx-page-badge" id="ctxChapterBadge" style="display:none">
+            <div class="ctx-pg-num" id="ctxChapterNum">—</div>
+            <span id="ctxChapterName">บท</span>
+          </div>
+          <!-- Page rich-text editor -->
+          <div id="pageTextPreviewWrap" style="display:none;margin-bottom:4px">
+            <div class="page-editor-wrap">
+              <div class="page-editor-header">
+                📄 ข้อความในหน้านี้
+                <span class="ped-badge" id="pedPageBadge">หน้า —</span>
+              </div>
+              <!-- Toolbar -->
+              <div class="page-editor-toolbar">
+                <!-- History -->
+                <button class="ped-btn" title="Undo" onclick="document.execCommand('undo')">↩</button>
+                <button class="ped-btn" title="Redo" onclick="document.execCommand('redo')">↪</button>
+                <div class="ped-sep"></div>
+                <!-- Font family -->
+                <select class="ped-select" id="pedFont" onchange="pedExec('fontName',this.value)" title="ฟอนต์">
+                  <option value="Sarabun">Sarabun</option>
+                  <option value="Kanit">Kanit</option>
+                  <option value="Prompt">Prompt</option>
+                  <option value="Mitr">Mitr</option>
+                  <option value="Charm">Charm</option>
+                  <option value="serif">Serif</option>
+                </select>
+                <!-- Font size -->
+                <select class="ped-select" id="pedSize" onchange="pedExec('fontSize',this.value)" title="ขนาด" style="width:46px">
+                  <option value="1">8</option>
+                  <option value="2">10</option>
+                  <option value="3" selected>12</option>
+                  <option value="4">14</option>
+                  <option value="5">18</option>
+                  <option value="6">24</option>
+                  <option value="7">36</option>
+                </select>
+                <div class="ped-sep"></div>
+                <!-- Style -->
+                <button class="ped-btn" title="ตัวหนา (Ctrl+B)" onclick="pedExec('bold')"><b>B</b></button>
+                <button class="ped-btn" title="ตัวเอียง (Ctrl+I)" onclick="pedExec('italic')"><i>I</i></button>
+                <button class="ped-btn" title="ขีดเส้นใต้ (Ctrl+U)" onclick="pedExec('underline')"><u>U</u></button>
+                <button class="ped-btn" title="ขีดทับ" onclick="pedExec('strikeThrough')"><s>S</s></button>
+                <div class="ped-sep"></div>
+                <!-- Color -->
+                <div class="ped-color" title="สีตัวอักษร" style="background:#1a1612">
+                  <input type="color" value="#1a1612" id="pedFgColor" onchange="pedExec('foreColor',this.value); this.parentElement.style.background=this.value">
+                </div>
+                <div class="ped-color" title="สีพื้นหลัง" style="background:#ffff88">
+                  <input type="color" value="#ffff88" id="pedBgColor" onchange="pedExec('hiliteColor',this.value); this.parentElement.style.background=this.value">
+                </div>
+                <div class="ped-sep"></div>
+                <!-- Align -->
+                <button class="ped-btn" id="pedAlignL" title="ชิดซ้าย" onclick="pedAlign('left')">≡</button>
+                <button class="ped-btn" id="pedAlignC" title="กึ่งกลาง" onclick="pedAlign('center')">☰</button>
+                <button class="ped-btn" id="pedAlignR" title="ชิดขวา" onclick="pedAlign('right')">≡</button>
+                <button class="ped-btn active" id="pedAlignJ" title="เต็มหน้า (Justify)" onclick="pedAlign('justify')">⊞</button>
+                <div class="ped-sep"></div>
+                <!-- Lists -->
+                <button class="ped-btn" title="รายการ" onclick="pedExec('insertUnorderedList')">• —</button>
+                <button class="ped-btn" title="รายการตัวเลข" onclick="pedExec('insertOrderedList')">1.</button>
+                <div class="ped-sep"></div>
+                <!-- Indent -->
+                <button class="ped-btn" title="ย่อหน้า" onclick="pedExec('indent')">→</button>
+                <button class="ped-btn" title="ถอยย่อหน้า" onclick="pedExec('outdent')">←</button>
+                <div class="ped-sep"></div>
+                <!-- Clear -->
+                <button class="ped-btn" title="ล้างการจัดรูปแบบ" onclick="pedExec('removeFormat')" style="font-size:10px">✕</button>
+              </div>
+              <!-- Editable area -->
+              <div class="page-editor-body" id="pedBody" contenteditable="true"
+                   onmouseup="pedUpdateToolbar()" onkeyup="pedUpdateToolbar()"
+                   oninput="pedOnInput()">
+              </div>
+              <!-- Footer actions -->
+              <div class="page-editor-footer">
+                <button class="ped-footer-btn" onclick="pedRevertToOriginal()" title="คืนค่าจากเนื้อหาบทนี้">↺ คืนค่า</button>
+                <button class="ped-footer-btn primary" onclick="pedApplyToChapter()" title="บันทึกกลับเข้าบท">💾 บันทึกเข้าบท</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel-section" id="chapterEditSection">
+            <div class="panel-section-title" style="cursor:default;pointer-events:none">แก้ไขบทที่เลือก</div>
+            <div class="panel-section-body" style="display:block !important">
+            <input class="chapter-title-input" type="text" id="chapterTitleInput" placeholder="ชื่อบท..." oninput="updateChapterTitle(this.value)">
+            <div class="format-bar">
+              <button class="fmt-btn" onmousedown="event.preventDefault();weInsert('quote')">« »</button>
+              <button class="fmt-btn" onmousedown="event.preventDefault();weInsert('dquote')">" "</button>
+              <button class="fmt-btn" onmousedown="event.preventDefault();weInsert('para')">¶ ย่อหน้า</button>
+              <button class="fmt-btn" onmousedown="event.preventDefault();weInsert('break')">— ขีดคั่น</button>
+              <button class="fmt-btn" onmousedown="event.preventDefault();weFormat('italic')"><i>เอียง</i></button>
+              <button class="fmt-btn" onmousedown="event.preventDefault();weFormat('bold')"><b>หนา</b></button>
+              <button class="fmt-btn" onmousedown="event.preventDefault();weFormat('underline')"><u>ขีด</u></button>
+              <button class="fmt-btn" onmousedown="event.preventDefault();weFormat('highlight')">✦ เน้น</button>
+              <button class="fmt-btn" onmousedown="event.preventDefault();weInsert('pagebreak')" style="color:var(--gold)">↵ หน้า</button>
+              <!-- Real-time color -->
+              <label title="สีตัวอักษร" style="cursor:pointer;display:flex;align-items:center;gap:3px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;background:#fff;height:28px">
+                <span style="font-size:11px;color:var(--ink-muted)">A</span>
+                <div id="fmtColorSwatch" style="width:14px;height:14px;border-radius:2px;background:#8b4513;border:1px solid #ccc" onmousedown="event.preventDefault();document.getElementById('fmtColorInput').click()"></div>
+                <input type="color" id="fmtColorInput" value="#8b4513" style="display:none" oninput="document.getElementById('fmtColorSwatch').style.background=this.value" onchange="weFormatColor(this.value)">
+              </label>
+              <!-- Real-time font size -->
+              <input type="number" id="fmtSizeInput" min="8" max="72" value="15" style="width:42px;height:28px;border:1px solid var(--border);border-radius:3px;font-size:12px;text-align:center;padding:0 4px;outline:none;margin-bottom:0" title="ขนาดตัวอักษร" onkeydown="if(event.key==='Enter'){event.preventDefault();weFormatSize(this.value)}" onblur="weFormatSize(this.value)">
+              <button class="fmt-btn" onmousedown="event.preventDefault();weFormat('clear')" style="font-size:10px;color:#c0392b">✕ล้าง</button>
+            </div>
+            <div class="editor-textarea wysiwyg-editor" id="chapterEditor"
+              contenteditable="true" spellcheck="false"
+              data-placeholder="เริ่มเขียนเนื้อหาของบทนี้..."
+              oninput="weOnInput()"
+              onmouseup="showInlineFmtBarOnSelect()"
+              onkeyup="showInlineFmtBarOnSelect()"
+            ></div>
+            </div><!-- /panel-section-body -->
+          </div>
+          <div class="panel-section">
+            <div class="panel-section-title">ภาพประกอบบทนี้</div>
+            <div class="ch-img-drop" id="chImgDrop">
+              <input type="file" accept="image/*" onchange="handleChapterImage(this)">
+              🖼 คลิกอัปโหลดรูปสำหรับบทนี้
+            </div>
+            <div id="chImgPreviewWrap" style="display:none; margin-bottom:8px;">
+              <img id="chImgPreview" style="max-width:100%; border-radius:4px; display:block; margin:0 auto 6px;">
+              <label>ขนาดรูป (%)</label>
+              <div class="slider-row">
+                <input type="range" min="20" max="100" value="100" id="chImgSize" oninput="updateChapterImageSize(this.value)">
+                <div class="slider-val" id="chImgSizeVal">100%</div>
+              </div>
+              <label>ตำแหน่งรูป</label>
+              <div class="ch-img-pos-row">
+                <button class="ch-img-pos-btn active" id="imgpos-top" onclick="setChImgPosition('top',this)">⬆ บน</button>
+                <button class="ch-img-pos-btn" id="imgpos-center" onclick="setChImgPosition('center',this)">⊞ กลาง</button>
+                <button class="ch-img-pos-btn" id="imgpos-left" onclick="setChImgPosition('left',this)">◀ ซ้าย</button>
+                <button class="ch-img-pos-btn" id="imgpos-right" onclick="setChImgPosition('right',this)">▶ ขวา</button>
+              </div>
+              <button class="btn-add-chapter" onclick="removeChapterImage()" style="color:#c0392b; border-color:#c0392b;">✕ ลบรูป</button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <div class="panel-section-title">📋 Clipboard — วางข้อความ</div>
+            <!-- Paste mode toggle -->
+            <div style="display:flex;gap:4px;margin-bottom:8px;background:var(--panel-bg);border-radius:6px;padding:4px">
+              <button id="pasteMode-preserve" class="rb-text active" onclick="setPasteMode('preserve',this)" style="flex:1;font-size:10px;padding:4px 6px" title="คงรูปแบบ bold/italic จาก Word">
+                📄 คงรูปแบบ
+              </button>
+              <button id="pasteMode-strip" class="rb-text" onclick="setPasteMode('strip',this)" style="flex:1;font-size:10px;padding:4px 6px" title="ล้าง formatting ทั้งหมด — ข้อความเปล่า">
+                🧹 ล้าง Fmt
+              </button>
+            </div>
+            <div id="pasteModeHint" style="font-size:10px;color:var(--ink-muted);margin-bottom:6px;line-height:1.5">📄 <b>คงรูปแบบ</b>: รักษา **bold**, _italic_, __underline__ จาก Word/Doc</div>
+            <textarea id="clipboardPasteArea" placeholder="วาง (Ctrl+V) ข้อความที่นี่..." style="min-height:64px;font-size:12px;font-family:monospace" onpaste="handleClipboardPaste(event,this)"></textarea>
+            <div style="display:flex;gap:5px;margin-top:4px">
+              <button class="btn btn-ghost" style="flex:1;justify-content:center;font-size:11px" onclick="stripAndInsert()">✓ Insert ลงบท</button>
+              <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" onclick="document.getElementById('clipboardPasteArea').value=''">✕</button>
+            </div>
+            <div style="font-size:10px;color:var(--ink-faint);margin-top:4px">💡 ประวัติ Clipboard (คลิกเพื่อใส่)</div>
+            <div class="clip-history" id="clipHistory">
+              <div class="clip-item" style="color:var(--ink-faint);font-style:italic">ยังไม่มีประวัติ...</div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <div class="panel-section-title">บันทึกส่วนตัว</div>
+            <textarea style="min-height:60px" id="chapterNote" placeholder="บันทึกส่วนตัว (ไม่แสดงในหนังสือ)..."></textarea>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Info tab -->
+      <div class="tab-content" id="tab-info">
+        <div class="panel-section">
+          <div class="panel-section-title">สถิติหนังสือ</div>
+          <div class="stat-pills">
+            <div class="stat-pill">บท <span id="statChapters">0</span></div>
+            <div class="stat-pill">คำ <span id="statWords">0</span></div>
+            <div class="stat-pill">อักขระ <span id="statChars">0</span></div>
+            <div class="stat-pill">หน้า <span id="statPages">0</span></div>
+          </div>
+          <div id="stat-extra" style="margin-top:10px;font-size:12px;color:var(--ink-muted);line-height:2;background:var(--panel-bg);border-radius:6px;padding:8px 10px">
+            <div>⏱ เวลาอ่าน: <strong id="statReadTime">—</strong></div>
+            <div>📄 เฉลี่ยต่อหน้า A5: <strong id="statWordsPerPage">—</strong> คำ
+              <span id="statWordsPerPageHint" style="font-size:10px;margin-left:4px"></span>
+            </div>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div class="panel-section-title">ภาพรวมบท</div>
+          <div id="chapterStats" style="font-size:12px; color:var(--ink-muted); line-height:1.8;"></div>
+        </div>
+        <div class="panel-section">
+          <div class="panel-section-title">ข้อมูล Export</div>
+          <div style="font-size:12px; color:var(--ink-muted); line-height:1.9;">
+            📄 ขนาดกระดาษ: A5 (148×210 มม.)<br>
+            🖋 ฟอนต์: Sarabun + Playfair Display<br>
+            📐 Margin: 1.5 ซม. โดยรอบ<br>
+            🔢 เลขหน้า: ล่างกึ่งกลาง<br>
+            🖼 ปก: รูปภาพ + ข้อความซ้อน
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Right-click Context Menu -->
+<div class="ctx-menu" id="rightClickMenu">
+  <div class="ctx-menu-section">ตัวอักษร</div>
+  <div class="ctx-menu-item" onclick="ctxFmt('bold')"><span class="cmi-icon"><b>B</b></span> ตัวหนา<span class="cmi-short">Ctrl+B</span></div>
+  <div class="ctx-menu-item" onclick="ctxFmt('italic')"><span class="cmi-icon"><i>I</i></span> ตัวเอียง<span class="cmi-short">Ctrl+I</span></div>
+  <div class="ctx-menu-item" onclick="ctxFmt('underline')"><span class="cmi-icon"><u>U</u></span> ขีดเส้นใต้</div>
+  <div class="ctx-menu-section">ขนาดตัวอักษร</div>
+  <div class="ctx-fs-row">
+    <label>ขนาด</label>
+    <input type="number" id="ctxFontSize" min="8" max="72" value="15" onchange="ctxSetFontSize(this.value)">
+    <span>px</span>
+    <select id="ctxFontFamily" onchange="ctxSetFont(this.value)" style="width:auto;flex:1;font-size:11px;padding:3px 4px;margin-bottom:0">
+      <option value="Sarabun">Sarabun</option>
+      <option value="Kanit">Kanit</option>
+      <option value="Prompt">Prompt</option>
+      <option value="Mitr">Mitr</option>
+      <option value="Charm">Charm</option>
+      <option value="Noto Serif Thai">Noto Serif Thai</option>
+      <option value="Playfair Display">Playfair Display</option>
+    </select>
+  </div>
+  <div class="ctx-menu-section">สี</div>
+  <div class="ctx-menu-color-row" id="ctxColorRow">
+    <div class="swatch" style="background:#1a1612" onclick="ctxSetColor('#1a1612')" title="ดำ"></div>
+    <div class="swatch" style="background:#8b4513" onclick="ctxSetColor('#8b4513')" title="น้ำตาล"></div>
+    <div class="swatch" style="background:#c9a227" onclick="ctxSetColor('#c9a227')" title="ทอง"></div>
+    <div class="swatch" style="background:#1a3a5c" onclick="ctxSetColor('#1a3a5c')" title="น้ำเงิน"></div>
+    <div class="swatch" style="background:#2d6a4f" onclick="ctxSetColor('#2d6a4f')" title="เขียว"></div>
+    <div class="swatch" style="background:#922b21" onclick="ctxSetColor('#922b21')" title="แดง"></div>
+    <div class="swatch" style="background:#6b2d8b" onclick="ctxSetColor('#6b2d8b')" title="ม่วง"></div>
+    <div class="swatch" style="background:#888888" onclick="ctxSetColor('#888888')" title="เทา"></div>
+    <label style="cursor:pointer;margin:0" title="เลือกสีเอง">
+      <input type="color" id="ctxColorPicker" style="display:none" onchange="ctxSetColor(this.value)">
+      <div class="swatch" style="background:linear-gradient(135deg,#f00,#0f0,#00f)" onclick="document.getElementById('ctxColorPicker').click()" title="สีอื่น"></div>
+    </label>
+  </div>
+  <div class="ctx-menu-section">การจัด</div>
+  <div class="ctx-menu-align-row" id="ctxAlignRow">
+    <button title="ชิดซ้าย" onclick="ctxAlign('left')">≡</button>
+    <button title="กึ่งกลาง" onclick="ctxAlign('center')" style="letter-spacing:0.1em">☰</button>
+    <button title="ชิดขวา" onclick="ctxAlign('right')">≡</button>
+    <button title="เต็มหน้า" onclick="ctxAlign('justify')" class="active">⊞</button>
+  </div>
+  <div class="ctx-menu-hr"></div>
+  <div class="ctx-menu-item" onclick="ctxFmt('quote')"><span class="cmi-icon">«»</span> คำพูด / Quote</div>
+  <div class="ctx-menu-item" onclick="ctxFmt('highlight')"><span class="cmi-icon">✦</span> เน้นข้อความ</div>
+  <div class="ctx-menu-hr"></div>
+  <div class="ctx-menu-section">แทรกรูปอิสระ</div>
+  <div class="ctx-menu-item" id="ctxInsertImgBtn" onclick="ctxInsertFreeImage()"><span class="cmi-icon">🖼</span> แทรกรูปบนหน้านี้</div>
+  <div class="ctx-menu-hr"></div>
+  <div class="ctx-menu-section">ของตกแต่ง</div>
+  <div class="ctx-menu-item" onclick="ctxInsertDecorText()"><span class="cmi-icon">✍</span> กล่องข้อความตกแต่ง</div>
+  <div id="ctxStickerRow" style="padding:4px 10px 8px;display:flex;flex-wrap:wrap;gap:4px;max-width:240px">
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('✦')">✦</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('❧')">❧</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('❦')">❦</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('⚜')">⚜</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🌸')">🌸</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🌺')">🌺</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🌹')">🌹</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🍀')">🍀</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🦋')">🦋</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🌙')">🌙</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('⭐')">⭐</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('💫')">💫</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('♥')">♥</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('♠')">♠</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('☽')">☽</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('⚔')">⚔</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🗡')">🗡</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🐉')">🐉</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🔮')">🔮</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🕯')">🕯</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('📖')">📖</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('🖋')">🖋</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('— ✦ —')">— ✦ —</span>
+    <span class="ctx-sticker-btn" onclick="ctxInsertSticker('* * *')">* * *</span>
+  </div>
+  <div class="ctx-menu-hr"></div>
+  <div class="ctx-menu-item" onclick="ctxFmt('clear')"><span class="cmi-icon">✕</span> ล้างการจัดรูปแบบ</div>
+</div>
+
+<!-- Per-page layout popup -->
+<div class="per-page-popup" id="perPagePopup">
+  <div class="per-page-popup-title">
+    Layout Pattern
+    <button onclick="closePerPagePopup()">×</button>
+  </div>
+  <!-- Scope toggle: หน้านี้ / ทั้งหมด -->
+  <div style="display:flex;gap:4px;margin-bottom:8px;padding:0 2px">
+    <button id="ppscope-page" class="rb-text active" onclick="setPerPageScope('page',this)" style="flex:1;font-size:10px;padding:4px 6px" title="ใช้กับหน้านี้เท่านั้น">📄 เฉพาะหน้านี้</button>
+    <button id="ppscope-chapter" class="rb-text" onclick="setPerPageScope('chapter',this)" style="flex:1;font-size:10px;padding:4px 6px" title="ใช้กับบทนี้ทุกหน้า">📖 ทั้งบท</button>
+    <button id="ppscope-all" class="rb-text" onclick="setPerPageScope('all',this)" style="flex:1;font-size:10px;padding:4px 6px" title="ใช้กับทุกบท ทุกหน้า">📚 ทั้งหมด</button>
+  </div>
+  <div id="ppScopeHint" style="font-size:10px;color:var(--ink-muted);margin-bottom:8px;padding:0 2px">📄 ใช้กับหน้านี้เท่านั้น</div>
+  <div class="layout-cards">
+    <div class="layout-card" onclick="applyPerPageLayout('novel',this)"><div class="lc-preview"><div class="lc-drop"></div><div class="lc-line" style="width:80%"></div><div class="lc-line" style="width:90%"></div></div><div class="lc-info"><div class="lc-name">📖 Thai Classic</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('romance',this)"><div class="lc-preview" style="--accent:#c0696e"><div class="lc-drop" style="background:#c0696e"></div><div class="lc-line" style="width:80%"></div><div class="lc-line" style="width:88%"></div></div><div class="lc-info"><div class="lc-name">🌸 Light Romance</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('fantasy',this)"><div class="lc-preview"><div class="lc-line" style="width:90%"></div><div class="lc-line" style="width:85%"></div></div><div class="lc-info"><div class="lc-name">⚔️ Dark Fantasy</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('thriller',this)"><div class="lc-preview"><div class="lc-line" style="width:88%"></div><div class="lc-line" style="width:82%"></div></div><div class="lc-info"><div class="lc-name">🔪 Thriller</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('literary',this)"><div class="lc-preview"><div class="lc-drop" style="background:#6b8c5a"></div><div class="lc-line" style="width:78%"></div><div class="lc-line" style="width:85%"></div></div><div class="lc-info"><div class="lc-name">📚 Literary</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('scifi',this)"><div class="lc-preview"><div class="lc-line" style="width:90%;background:#7090b0"></div><div class="lc-line" style="width:84%;background:#7090b0"></div></div><div class="lc-info"><div class="lc-name">🚀 Sci-Fi</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('dialogue',this)"><div class="lc-preview"><div class="lc-line" style="width:60%"></div><div class="lc-line" style="width:75%;margin-left:4px"></div></div><div class="lc-info"><div class="lc-name">💬 Dialogue</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('poetry',this)"><div class="lc-preview"><div class="lc-line" style="width:65%;margin:0 auto"></div><div class="lc-line" style="width:55%;margin:2px auto 0"></div></div><div class="lc-info"><div class="lc-name">🌺 Poetry</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('cozy',this)"><div class="lc-preview"><div class="lc-drop" style="background:#065f46"></div><div class="lc-line" style="width:82%"></div><div class="lc-line" style="width:88%"></div></div><div class="lc-info"><div class="lc-name">☕ Cozy</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('light_novel',this)"><div class="lc-preview"><div class="lc-line" style="width:86%;background:#a78bfa"></div><div class="lc-line" style="width:80%;background:#a78bfa"></div></div><div class="lc-info"><div class="lc-name">📗 Light Novel</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('manhwa',this)"><div class="lc-preview"><div class="lc-line" style="width:88%;background:#38bdf8"></div><div class="lc-line" style="width:84%;background:#38bdf8"></div></div><div class="lc-info"><div class="lc-name">📺 Manhwa</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('elegant_serif',this)"><div class="lc-preview"><div class="lc-drop" style="background:#4338ca"></div><div class="lc-line" style="width:78%"></div><div class="lc-line" style="width:84%"></div></div><div class="lc-info"><div class="lc-name">✨ Elegant Serif</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('dramatic',this)"><div class="lc-preview"><div class="lc-drop" style="background:#dc2626"></div><div class="lc-line" style="width:80%"></div><div class="lc-line" style="width:86%"></div></div><div class="lc-info"><div class="lc-name">🎭 Dramatic</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('academic',this)"><div class="lc-preview"><div class="lc-line" style="width:84%"></div><div class="lc-line" style="width:80%"></div></div><div class="lc-info"><div class="lc-name">🎓 Academic</div></div></div>
+    <div class="layout-card" onclick="applyPerPageLayout('flash_fiction',this)"><div class="lc-preview"><div class="lc-line" style="width:70%;margin:0 auto"></div><div class="lc-line" style="width:60%;margin:2px auto 0"></div></div><div class="lc-info"><div class="lc-name">⚡ Flash Fiction</div></div></div>
+  </div>
+  <button onclick="clearPerPageLayout()" style="width:100%;padding:5px;background:var(--panel-bg);border:1px solid var(--border);border-radius:4px;font-size:11px;color:#c0392b;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:2px">✕ ล้าง Layout ที่ตั้งไว้</button>
+</div>
+
+<!-- Free image drop input (hidden) -->
+<input type="file" id="freeImgInput" accept="image/*" style="display:none" onchange="handleFreeImgUpload(this)">
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Inline Format Bar (shows on text selection in editor) -->
+<div class="inline-fmt-bar" id="inlineFmtBar">
+  <button class="ifb-btn" title="ตัวหนา (Bold)" onmousedown="event.preventDefault();applyInlineFmt('bold')"><b>B</b></button>
+  <button class="ifb-btn" title="ตัวเอียง (Italic)" onmousedown="event.preventDefault();applyInlineFmt('italic')"><i>I</i></button>
+  <button class="ifb-btn" title="ขีดเส้นใต้" onmousedown="event.preventDefault();applyInlineFmt('underline')"><u>U</u></button>
+  <div class="ifb-sep"></div>
+  <button class="ifb-btn" title='เน้นคำพูด (« »)' onmousedown="event.preventDefault();applyInlineFmt('quote')">«»</button>
+  <button class="ifb-btn" title="เน้นสำคัญ (Highlight)" onmousedown="event.preventDefault();applyInlineFmt('highlight')">✦</button>
+  <button class="ifb-btn" title="คำสั่ง/โค้ด" onmousedown="event.preventDefault();applyInlineFmt('cmd')">[ ]</button>
+  <div class="ifb-sep"></div>
+  <input class="ifb-size" type="number" id="ifbSize" value="15" min="8" max="36" title="ขนาดตัวอักษร (px)" onkeydown="if(event.key==='Enter'){event.preventDefault();_savedSel=window.getSelection()&&window.getSelection().rangeCount?window.getSelection().getRangeAt(0).cloneRange():null;applyInlineFmt('size');}">
+  <button class="ifb-btn" title="ใช้ขนาดนี้กับข้อความที่เลือก" onmousedown="event.preventDefault();_savedSel=window.getSelection()&&window.getSelection().rangeCount?window.getSelection().getRangeAt(0).cloneRange():null;" onclick="applyInlineFmt('size')" style="font-size:10px;background:rgba(139,69,19,0.3);color:#f0c080">px✓</button>
+  <div class="ifb-sep"></div>
+  <label title="เลือกสีตัวอักษร" style="cursor:pointer;display:flex;align-items:center;gap:3px">
+    <input type="color" id="ifbColor" value="#8b4513" style="display:none" oninput="document.getElementById('ifbColorSwatch').style.background=this.value">
+    <div class="ifb-color" id="ifbColorSwatch" style="background:#8b4513" onmousedown="event.preventDefault();document.getElementById('ifbColor').click()" title="คลิกเลือกสี"></div>
+  </label>
+  <button class="ifb-btn" title="ใช้สีนี้กับข้อความที่เลือก" onmousedown="event.preventDefault();applyInlineFmt('color')" style="font-size:10px;background:rgba(139,69,19,0.3);color:#f0c080">A✓</button>
+  <div class="ifb-sep"></div>
+  <button class="ifb-btn" title="ล้างการจัดรูปแบบ" onmousedown="event.preventDefault();applyInlineFmt('clear')" style="font-size:10px">✕</button>
+</div>
+
+<!-- Hidden file input for load project -->
+<input type="file" id="loadProjectInput" accept=".json" style="display:none" onchange="loadProjectFile(this)">
+<!-- Hidden file input for txt import -->
+<input type="file" id="importTxtInput" accept=".txt" style="display:none" onchange="importTxtFile(this)">
+<!-- Hidden file input for docx import -->
+<input type="file" id="importDocxInput" accept=".docx" style="display:none" onchange="importDocxFile(this)">
+
+<!-- Focus Mode Exit Button -->
+<button class="focus-exit-btn" onclick="toggleFocusMode()">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+  ออกจาก Focus Mode (Esc)
+</button>
+
+<!-- Search & Replace Modal -->
+<div class="modal-overlay" id="searchModal">
+  <div class="modal-box">
+    <div class="modal-title">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      ค้นหาและแทนที่
+      <button class="modal-close" onclick="closeSearch()">×</button>
+    </div>
+    <div class="modal-field">
+      <label>ค้นหา</label>
+      <input type="text" id="searchInput" placeholder="ข้อความที่ต้องการค้นหา..." oninput="searchCount()">
+    </div>
+    <div class="search-options">
+      <label class="search-opt-label">
+        <input type="checkbox" id="searchRegex" onchange="searchCount()">
+        <span class="regex-badge">.*</span> Regex
+      </label>
+      <label class="search-opt-label">
+        <input type="checkbox" id="searchCase" onchange="searchCount()">
+        Aa ตัวพิมพ์เล็ก/ใหญ่
+      </label>
+      <label class="search-opt-label">
+        <input type="checkbox" id="searchWholeWord" onchange="searchCount()">
+        คำเต็ม
+      </label>
+    </div>
+    <div class="search-result-info" id="searchInfo"></div>
+    <div class="modal-field">
+      <label>แทนที่ด้วย</label>
+      <input type="text" id="replaceInput" placeholder="ข้อความที่ต้องการแทนที่... (Regex: ใช้ $1,$2 สำหรับ group)">
+    </div>
+    <div class="modal-scope">
+      <label><input type="radio" name="searchScope" value="chapter" checked> บทที่เลือกอยู่</label>
+      <label><input type="radio" name="searchScope" value="all"> ทุกบท</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="replaceOne()">แทนที่ครั้งละ 1</button>
+      <button class="btn btn-primary" onclick="replaceAll()">แทนที่ทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="js/main.js"></script>
+</body>
+</html>
