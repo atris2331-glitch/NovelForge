@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NovelForge V3</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+html,body,#root {
+  margin:0;
+  width:100%;
+  height:100%;
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+
+
+/* ─── Tokens ─────────────────────────────────────────────────────── */
+const T = {
+  bg0: "#0d0c0b",
+  bg1: "#141210",
+  bg2: "#181614",
+  bg3: "#1e1b18",
+  bg4: "#252220",
+  border: "#2a2724",
+  border2: "#332f2b",
+  ink: "#e0dbd4",
+  inkMid: "#a8a49f",
+  inkDim: "#6b6560",
+  inkFaint: "#3a3632",
+  gold: "#c9a227",
+  accent: "#8b4513",
+  accentLight: "#c4773a",
+  paper: "#fdfaf5",
+  paperWarm: "#f5ede0",
+  green: "#5a9a5a",
+};
+
+/* ─── Default chapter data (from v3) ─────────────────────────────── */
+const DEFAULT_CHAPTERS = [
+  {
+    id: 1,
+    title: "ลมกรด",
+    content: "ณ ชายแดนที่ขอบฟ้าแห่งอาณาจักรอาร์เวน สายลมพัดผ่านทุ่งหญ้าสีทองราวกับการโอดครวญของวิญญาณที่ไม่มีที่ไป เซล่า หญิงสาวผมดำประกายสีน้ำเงิน ยืนอยู่บนหน้าผาสูงชัน สายตาปักแน่นอยู่ที่ขอบฟ้าอันไกลโพ้น\n\nเธอเคยได้ยินเรื่องเล่าจากยายมาตั้งแต่เด็ก เรื่องของมังกรลมที่ซ่อนตัวอยู่ในเมฆก้อนใหญ่ เรื่องของอาณาจักรที่หายไปพร้อมกับพายุฝนครั้งใหญ่เมื่อพันปีก่อน และเรื่องของสมบัติที่ซ่อนไว้ลึกในหัวใจของพายุนั้น\n\n«ถ้าลมพาเธอไป จงไปด้วยใจที่กล้า» นั่นคือสิ่งที่ยายบอกในวันที่เธอจากไปตลอดกาล เซล่าบิดริมฝีปาก มือเธอกำดาบเงินอยู่แน่น ดาบที่เป็นมรดกจากตระกูลที่สูญสลายไปนานแล้ว",
+    note: "",
+    status: "done",
+  },
+  {
+    id: 2,
+    title: "เมืองใต้พายุ",
+    content: "ตลาดเมืองคาลิสเต้มีกลิ่นของควันธูปและเครื่องเทศปนกัน พ่อค้าแม่ค้าเรียกขายสินค้าด้วยเสียงดัง ขณะที่เด็กๆ วิ่งเล่นอยู่ระหว่างแผงขาย\n\nเซล่าสวมผ้าคลุมหน้าสีน้ำตาล เดินผ่านฝูงชนอย่างระมัดระวัง เธอกำลังมองหาใครบางคน คนที่รู้เรื่องแผนที่ที่ซ่อนอยู่ในตำนาน\n\n«เฮ้ นายหญิง รอสักครู่» เสียงชายคนหนึ่งเรียกจากหลัง เซล่าหยุดเดินแต่ไม่หันหน้า มือวางบนด้ามดาบโดยสัญชาตญาณ",
+    note: "",
+    status: "writing",
+  },
+];
+
+/* ─── LocalStorage helpers ───────────────────────────────────────── */
+const STORAGE_KEY = "novelforge_autosave";
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.chapters && data.chapters.length > 0) return data;
+    }
+  } catch(e) {}
+  return null;
+}
+
+function saveToStorage(chapters, bookTitle) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      chapters,
+      bookTitle: bookTitle || "ลมกรด",
+      savedAt: new Date().toISOString(),
+    }));
+  } catch(e) {}
+}
+
+/* ─── Word count helper ──────────────────────────────────────────── */
+function countWords(text) {
+  if (!text || !text.trim()) return 0;
+  return text.trim().split(/\s+/).length;
+}
+
+function getStatus(words) {
+  if (words === 0) return "outline";
+  if (words < 500) return "draft";
+  if (words < 900) return "writing";
+  return "done";
+}
+
+const SLASH_CMDS = [
+  ["/character", "เพิ่มตัวละคร"],
+  ["/location", "เพิ่มสถานที่"],
+  ["/rewrite", "ช่วยเขียนใหม่"],
+  ["/expand", "ขยายเนื้อหา"],
+  ["/summary", "สรุปเนื้อหา"],
+  ["/image", "แทรกรูปภาพ"],
+  ["/note", "เพิ่มโน้ต"],
+];
+
+/* ─── Micro components ───────────────────────────────────────────── */
+function Icon({ d, size = 14, strokeWidth = 1.8 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      {Array.isArray(d) ? d.map((p, i) => <path key={i} d={p} />) : <path d={d} />}
+    </svg>
+  );
+}
+
+function Tag({ label, onRemove }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "2px 8px", borderRadius: 12,
+      background: "rgba(201,162,39,0.12)", border: "1px solid rgba(201,162,39,0.25)",
+      fontSize: 11, color: T.gold, fontWeight: 600,
+    }}>
+      {label}
+      {onRemove && <span style={{ cursor: "pointer", opacity: 0.6, fontSize: 10 }} onClick={onRemove}>✕</span>}
+    </span>
+  );
+}
+
+function Toggle({ checked, onChange }) {
+  return (
+    <div onClick={() => onChange(!checked)} style={{
+      width: 32, height: 17, borderRadius: 9,
+      background: checked ? T.accent : T.bg4,
+      border: `1px solid ${checked ? T.accent : T.border2}`,
+      cursor: "pointer", position: "relative", transition: "all .2s", flexShrink: 0,
+    }}>
+      <div style={{
+        position: "absolute", top: 2, left: checked ? 16 : 2,
+        width: 11, height: 11, borderRadius: "50%",
+        background: "#fff", transition: "left .2s",
+      }} />
+    </div>
+  );
+}
+
+/* ─── Top Bar ─────────────────────────────────────────────────────── */
+function TopBar({ sideOpen, rightOpen, setSideOpen, setRightOpen }) {
+  const menus = ["Project", "Edit", "Insert", "Export", "Tools", "AI", "Settings"];
+  return (
+    <div style={{
+      height: 44, background: T.bg1, borderBottom: `1px solid ${T.border}`,
+      display: "flex", alignItems: "center", padding: "0 12px", gap: 0, flexShrink: 0,
+    }}>
+      {/* Logo */}
+      <button onClick={() => setSideOpen(v => !v)} style={{
+        background: sideOpen ? "rgba(201,162,39,0.1)" : "transparent",
+        border: `1px solid ${sideOpen ? "#5a5048" : T.border}`,
+        borderRadius: 6, width: 28, height: 28, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center", color: sideOpen ? T.gold : T.inkDim,
+        marginRight: 10, flexShrink: 0, transition: "all .15s",
+      }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="7" height="18" rx="1" /><path d="M14 3h7M14 9h7M14 15h4" />
+        </svg>
+      </button>
+
+      <div style={{
+        fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 700,
+        color: T.gold, display: "flex", alignItems: "center", gap: 7, marginRight: 18, flexShrink: 0,
+      }}>
+        🪶 NovelForge
+        <span style={{ fontFamily: "inherit", fontSize: 11, color: T.inkDim, fontWeight: 400 }}>V3</span>
+      </div>
+
+      {/* Menu bar */}
+      <div style={{ display: "flex", gap: 1, flex: 1, overflow: "hidden" }}>
+        {menus.map(m => (
+          <button key={m} style={{
+            background: "transparent", border: "none", color: T.inkMid,
+            fontSize: 12, fontWeight: 600, padding: "4px 10px", cursor: "pointer",
+            borderRadius: 4, fontFamily: "inherit", whiteSpace: "nowrap",
+            transition: "all .12s",
+          }}
+            onMouseEnter={e => { e.target.style.background = "rgba(255,255,255,0.05)"; e.target.style.color = T.ink; }}
+            onMouseLeave={e => { e.target.style.background = "transparent"; e.target.style.color = T.inkMid; }}
+          >{m}</button>
+        ))}
+      </div>
+
+      {/* Right side controls */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {/* Autosave */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: T.green,
+          background: "rgba(90,154,90,0.1)", border: "1px solid rgba(90,154,90,0.2)",
+          borderRadius: 20, padding: "3px 9px", fontWeight: 600,
+        }}>
+          <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.green, animation: "pulse 2s infinite" }} />
+          Auto Save
+        </div>
+        {/* Icons */}
+        {["↩", "↪", "🔍", "?"].map(ic => (
+          <button key={ic} style={{
+            width: 28, height: 28, borderRadius: 5, border: `1px solid ${T.border}`,
+            background: "transparent", color: T.inkDim, cursor: "pointer", fontSize: 12,
+            display: "flex", alignItems: "center", justifyContent: "center", transition: "all .12s",
+          }}
+            onMouseEnter={e => { e.target.style.color = T.ink; e.target.style.borderColor = "#5a5048"; }}
+            onMouseLeave={e => { e.target.style.color = T.inkDim; e.target.style.borderColor = T.border; }}
+          >{ic}</button>
+        ))}
+        {/* Right panel toggle */}
+        <button onClick={() => setRightOpen(v => !v)} style={{
+          background: rightOpen ? "rgba(201,162,39,0.1)" : "transparent",
+          border: `1px solid ${rightOpen ? "#5a5048" : T.border}`,
+          borderRadius: 6, width: 28, height: 28, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: rightOpen ? T.gold : T.inkDim, transition: "all .15s",
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="14" y="3" width="7" height="18" rx="1" /><path d="M10 3H3M10 9H3M10 15H7" />
+          </svg>
+        </button>
+        {/* Avatar */}
+        <div style={{
+          width: 28, height: 28, borderRadius: "50%",
+          background: "linear-gradient(135deg,#8b4513,#c9a227)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer",
+        }}>ศ</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Page Border Renderer ───────────────────────────────────────── */
+const PAGE_BORDERS = [
+  { id: "none",       label: "ไม่มีขอบ",       preview: "—" },
+  { id: "simple",     label: "เส้นเดี่ยว",      preview: "□" },
+  { id: "double",     label: "เส้นคู่",          preview: "⊞" },
+  { id: "thick",      label: "เส้นหนา",          preview: "▪" },
+  { id: "dashed",     label: "เส้นประ",          preview: "⋯" },
+  { id: "corner",     label: "มุมประดับ",        preview: "✦" },
+  { id: "ornate",     label: "วินเทจ",           preview: "❧" },
+  { id: "floral",     label: "ดอกไม้",           preview: "❀" },
+  { id: "dots",       label: "จุด",              preview: "·" },
+  { id: "wave",       label: "คลื่น",            preview: "〜" },
+  { id: "classical",  label: "คลาสสิก",          preview: "◈" },
+  { id: "brush",      label: "พู่กัน",           preview: "∿" },
+];
+
+function PageBorderOverlay({ borderStyle, color }) {
+  const c = color || "#8b4513";
+  const s = { position: "absolute", pointerEvents: "none" };
+
+  if (borderStyle === "none") return null;
+
+  if (borderStyle === "simple") return (
+    <div style={{ ...s, inset: 10, border: `1.5px solid ${c}55` }} />
+  );
+
+  if (borderStyle === "double") return (<>
+    <div style={{ ...s, inset: 8,  border: `1px solid ${c}66` }} />
+    <div style={{ ...s, inset: 13, border: `1px solid ${c}44` }} />
+  </>);
+
+  if (borderStyle === "thick") return (
+    <div style={{ ...s, inset: 8, border: `4px solid ${c}44`, borderRadius: 1 }} />
+  );
+
+  if (borderStyle === "dashed") return (
+    <div style={{ ...s, inset: 10, border: `1.5px dashed ${c}55`, borderRadius: 1 }} />
+  );
+
+  if (borderStyle === "dots") return (
+    <div style={{ ...s, inset: 10, border: `2px dotted ${c}55`, borderRadius: 1 }} />
+  );
+
+  if (borderStyle === "corner") {
+    const corner = (top, left, right, bottom, rotate) => (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none"
+        style={{ position: "absolute", top, left, right, bottom, transform: `rotate(${rotate}deg)`, opacity: 0.55 }}>
+        <path d="M2 2 L2 12 M2 2 L12 2" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+        <circle cx="2" cy="2" r="2" fill={c} />
+        <path d="M8 8 L8 16 M8 8 L16 8" stroke={c} strokeWidth="1" strokeLinecap="round" opacity="0.5"/>
+      </svg>
+    );
+    return (<>
+      {corner(8, 8, null, null, 0)}
+      {corner(8, null, 8, null, 90)}
+      {corner(null, null, 8, 8, 180)}
+      {corner(null, 8, null, 8, 270)}
+      <div style={{ ...s, inset: 18, border: `0.5px solid ${c}22` }} />
+    </>);
+  }
+
+  if (borderStyle === "ornate") {
+    const W = 520, H = 735;
+    return (
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none"
+        style={{ ...s, inset: 0, width: "100%", height: "100%" }}>
+        <rect x="10" y="10" width={W-20} height={H-20} stroke={c} strokeWidth="1" opacity="0.5"/>
+        <rect x="16" y="16" width={W-32} height={H-32} stroke={c} strokeWidth="0.5" opacity="0.3" strokeDasharray="4 3"/>
+        {/* Corner ornaments */}
+        {[[14,14,0],[W-14,14,90],[W-14,H-14,180],[14,H-14,270]].map(([x,y,r],i)=>(
+          <g key={i} transform={`translate(${x},${y}) rotate(${r})`}>
+            <path d="M0,0 L12,0 M0,0 L0,12" stroke={c} strokeWidth="1.5" strokeLinecap="round" opacity="0.8"/>
+            <path d="M3,3 L8,3 M3,3 L3,8" stroke={c} strokeWidth="0.8" strokeLinecap="round" opacity="0.5"/>
+            <circle cx="0" cy="0" r="1.5" fill={c} opacity="0.8"/>
+          </g>
+        ))}
+        {/* Mid edge ornaments */}
+        {[[W/2,12],[W/2,H-12],[12,H/2],[W-12,H/2]].map(([x,y],i)=>(
+          <g key={i} transform={`translate(${x},${y})`}>
+            <path d="M-4,0 L4,0 M0,-4 L0,4" stroke={c} strokeWidth="0.8" opacity="0.4"/>
+            <circle cx="0" cy="0" r="1.2" fill={c} opacity="0.5"/>
+          </g>
+        ))}
+      </svg>
+    );
+  }
+
+  if (borderStyle === "floral") {
+    const W = 520, H = 735;
+    const Flower = ({x,y,r=0,s=1}) => (
+      <g transform={`translate(${x},${y}) rotate(${r}) scale(${s})`}>
+        {[0,60,120,180,240,300].map((a,i)=>(
+          <ellipse key={i} cx={Math.cos(a*Math.PI/180)*5} cy={Math.sin(a*Math.PI/180)*5}
+            rx="3.5" ry="2" fill={c} opacity="0.3" transform={`rotate(${a})`}/>
+        ))}
+        <circle cx="0" cy="0" r="2" fill={c} opacity="0.5"/>
+      </g>
+    );
+    const vine = (x1,y1,x2,y2) => (
+      <path d={`M${x1},${y1} Q${(x1+x2)/2+10},${(y1+y2)/2-10} ${x2},${y2}`}
+        stroke={c} strokeWidth="0.8" fill="none" opacity="0.3"/>
+    );
+    return (
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none"
+        style={{ ...s, inset: 0, width: "100%", height: "100%" }}>
+        <rect x="14" y="14" width={W-28} height={H-28} stroke={c} strokeWidth="0.8" opacity="0.3"/>
+        {/* Flowers at corners */}
+        <Flower x={22} y={22} r={0}/>
+        <Flower x={W-22} y={22} r={45}/>
+        <Flower x={W-22} y={H-22} r={90}/>
+        <Flower x={22} y={H-22} r={135}/>
+        {/* Flowers along edges */}
+        {[W/4,W/2,3*W/4].map((x,i)=><Flower key={i} x={x} y={18} r={i*20} s={0.8}/>)}
+        {[W/4,W/2,3*W/4].map((x,i)=><Flower key={i} x={x} y={H-18} r={i*20} s={0.8}/>)}
+        {[H/4,H/2,3*H/4].map((y,i)=><Flower key={i} x={18} y={y} r={i*20} s={0.8}/>)}
+        {[H/4,H/2,3*H/4].map((y,i)=><Flower key={i} x={W-18} y={y} r={i*20} s={0.8}/>)}
+        {/* Vines */}
+        {vine(30,30,80,18)}{vine(80,18,W-80,18)}{vine(W-80,18,W-30,30)}
+        {vine(30,H-30,80,H-18)}{vine(80,H-18,W-80,H-18)}{vine(W-80,H-18,W-30,H-30)}
+      </svg>
+    );
+  }
+
+  if (borderStyle === "wave") {
+    const W = 520, H = 735;
+    const waveTop = `M14,18 ${Array.from({length:25},(_,i)=>`Q${14+i*20+10},${i%2===0?10:26} ${14+(i+1)*20},18`).join(" ")}`;
+    const waveBot = `M14,${H-18} ${Array.from({length:25},(_,i)=>`Q${14+i*20+10},${i%2===0?H-10:H-26} ${14+(i+1)*20},${H-18}`).join(" ")}`;
+    return (
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none"
+        style={{ ...s, inset: 0, width: "100%", height: "100%" }}>
+        <path d={waveTop} stroke={c} strokeWidth="1.2" opacity="0.4"/>
+        <path d={waveBot} stroke={c} strokeWidth="1.2" opacity="0.4"/>
+        <line x1="14" y1="14" x2="14" y2={H-14} stroke={c} strokeWidth="1" opacity="0.3"/>
+        <line x1={W-14} y1="14" x2={W-14} y2={H-14} stroke={c} strokeWidth="1" opacity="0.3"/>
+      </svg>
+    );
+  }
+
+  if (borderStyle === "classical") {
+    const W = 520, H = 735;
+    return (
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none"
+        style={{ ...s, inset: 0, width: "100%", height: "100%" }}>
+        <rect x="8" y="8" width={W-16} height={H-16} stroke={c} strokeWidth="2" opacity="0.45"/>
+        <rect x="14" y="14" width={W-28} height={H-28} stroke={c} strokeWidth="0.5" opacity="0.25"/>
+        {/* Diamond corners */}
+        {[[8,8],[W-8,8],[W-8,H-8],[8,H-8]].map(([x,y],i)=>(
+          <rect key={i} x={x-5} y={y-5} width="10" height="10"
+            fill={c} opacity="0.6" transform={`rotate(45 ${x} ${y})`}/>
+        ))}
+        {/* Mid-edge diamonds */}
+        {[[W/2,8],[W/2,H-8],[8,H/2],[W-8,H/2]].map(([x,y],i)=>(
+          <rect key={i} x={x-3.5} y={y-3.5} width="7" height="7"
+            fill={c} opacity="0.4" transform={`rotate(45 ${x} ${y})`}/>
+        ))}
+      </svg>
+    );
+  }
+
+  if (borderStyle === "brush") {
+    const W = 520, H = 735;
+    return (
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none"
+        style={{ ...s, inset: 0, width: "100%", height: "100%" }}>
+        {/* Rough brush strokes as thick varied paths */}
+        <path d={`M12,20 Q${W/4},8 ${W/2},16 Q${3*W/4},6 ${W-12},20`}
+          stroke={c} strokeWidth="4" strokeLinecap="round" opacity="0.25" fill="none"/>
+        <path d={`M12,${H-20} Q${W/4},${H-8} ${W/2},${H-16} Q${3*W/4},${H-6} ${W-12},${H-20}`}
+          stroke={c} strokeWidth="4" strokeLinecap="round" opacity="0.25" fill="none"/>
+        <path d={`M16,16 Q8,${H/4} 14,${H/2} Q6,${3*H/4} 16,${H-16}`}
+          stroke={c} strokeWidth="4" strokeLinecap="round" opacity="0.25" fill="none"/>
+        <path d={`M${W-16},16 Q${W-8},${H/4} ${W-14},${H/2} Q${W-6},${3*H/4} ${W-16},${H-16}`}
+          stroke={c} strokeWidth="4" strokeLinecap="round" opacity="0.25" fill="none"/>
+        {/* Inner thin line */}
+        <rect x="18" y="18" width={W-36} height={H-36} stroke={c} strokeWidth="0.5" opacity="0.2"/>
+      </svg>
+    );
+  }
+
+  return null;
+}
+function Toolbar({ activeMode, borderStyle, setBorderStyle, borderColor, setBorderColor }) {
+  const [bold, setBold] = useState(false);
+  const [italic, setItalic] = useState(false);
+  const [under, setUnder] = useState(false);
+  const [showBorderPicker, setShowBorderPicker] = useState(false);
+
+  if (activeMode !== "writing") return null;
+
+  const Tb = ({ children, active, onClick, title, style = {} }) => (
+    <button title={title} onClick={onClick} style={{
+      background: active ? "rgba(139,69,19,0.3)" : "transparent",
+      border: "none", borderRadius: 4, color: active ? T.gold : T.inkMid,
+      padding: "4px 7px", cursor: "pointer", fontFamily: "inherit",
+      fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center",
+      gap: 3, transition: "all .12s", whiteSpace: "nowrap", ...style,
+    }}
+      onMouseEnter={e => !active && (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+      onMouseLeave={e => !active && (e.currentTarget.style.background = "transparent")}
+    >{children}</button>
+  );
+
+  const Sep = () => <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.07)", margin: "0 3px" }} />;
+
+  const currentBorder = PAGE_BORDERS.find(b => b.id === borderStyle) || PAGE_BORDERS[0];
+
+  return (
+    <div style={{
+      height: 40, background: T.bg2, borderBottom: `1px solid ${T.border}`,
+      display: "flex", alignItems: "center", padding: "0 10px", gap: 2,
+      flexShrink: 0, overflowX: "auto", position: "relative",
+    }}>
+      <select style={{
+        background: T.bg3, border: `1px solid rgba(255,255,255,0.1)`,
+        color: T.inkMid, borderRadius: 4, fontSize: 11, padding: "2px 6px",
+        fontFamily: "inherit", cursor: "pointer", marginRight: 4,
+      }}>
+        <option>Normal</option><option>Heading 1</option><option>Heading 2</option><option>Quote</option>
+      </select>
+      <select style={{
+        background: T.bg3, border: `1px solid rgba(255,255,255,0.1)`,
+        color: T.inkMid, borderRadius: 4, fontSize: 11, padding: "2px 6px",
+        fontFamily: "inherit", cursor: "pointer", maxWidth: 110,
+      }}>
+        <option>Sarabun</option><option>Kanit</option><option>Noto Serif Thai</option>
+      </select>
+      <select style={{
+        background: T.bg3, border: `1px solid rgba(255,255,255,0.1)`,
+        color: T.inkMid, borderRadius: 4, fontSize: 11, padding: "2px 6px",
+        fontFamily: "inherit", cursor: "pointer", width: 50,
+      }}>
+        <option>16</option><option>14</option><option>15</option><option>18</option>
+      </select>
+      <Sep />
+      <Tb active={bold} onClick={() => setBold(v => !v)} style={{ fontWeight: 700, fontSize: 13 }}>B</Tb>
+      <Tb active={italic} onClick={() => setItalic(v => !v)} style={{ fontStyle: "italic", fontSize: 13 }}>I</Tb>
+      <Tb active={under} onClick={() => setUnder(v => !v)} style={{ textDecoration: "underline", fontSize: 13 }}>U</Tb>
+      <Tb title="Strikethrough" style={{ textDecoration: "line-through", fontSize: 12 }}>S</Tb>
+      <Sep />
+      {["≡", "☰", "⊞", "⊟"].map((ic, i) => <Tb key={i}>{ic}</Tb>)}
+      <Sep />
+      {["🎨", "🖊", "✦", "🖼"].map((ic, i) => <Tb key={i}>{ic}</Tb>)}
+      <Sep />
+
+      {/* Border picker button */}
+      <button
+        onClick={() => setShowBorderPicker(v => !v)}
+        style={{
+          display: "flex", alignItems: "center", gap: 5,
+          background: showBorderPicker ? "rgba(201,162,39,0.15)" : "transparent",
+          border: `1px solid ${showBorderPicker ? T.gold + "66" : "rgba(255,255,255,0.1)"}`,
+          borderRadius: 5, padding: "3px 9px", cursor: "pointer",
+          color: showBorderPicker ? T.gold : T.inkMid, fontSize: 11, fontWeight: 600,
+          whiteSpace: "nowrap", transition: "all .15s",
+        }}
+      >
+        <span style={{ fontSize: 13 }}>{currentBorder.preview}</span>
+        ขอบกระดาษ: {currentBorder.label}
+        <span style={{ fontSize: 9, marginLeft: 2 }}>▾</span>
+      </button>
+
+      {/* Color dot */}
+      {borderStyle !== "none" && (
+        <label title="เลือกสีขอบ" style={{
+          width: 18, height: 18, borderRadius: "50%",
+          background: borderColor || "#8b4513",
+          border: "2px solid rgba(255,255,255,0.2)",
+          cursor: "pointer", flexShrink: 0, display: "block",
+        }}>
+          <input type="color" value={borderColor || "#8b4513"}
+            onChange={e => setBorderColor(e.target.value)}
+            style={{ opacity: 0, width: 0, height: 0, position: "absolute" }} />
+        </label>
+      )}
+
+      {/* Border dropdown */}
+      {showBorderPicker && (
+        <div style={{
+          position: "absolute", top: 42, left: "auto", right: 10,
+          background: T.bg1, border: `1px solid ${T.border2}`,
+          borderRadius: 8, padding: 10, zIndex: 999,
+          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          minWidth: 340,
+        }}>
+          {PAGE_BORDERS.map(b => (
+            <button key={b.id}
+              onClick={() => { setBorderStyle(b.id); setShowBorderPicker(false); }}
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                padding: "8px 6px", borderRadius: 6, cursor: "pointer",
+                background: borderStyle === b.id ? "rgba(201,162,39,0.15)" : T.bg3,
+                border: `1px solid ${borderStyle === b.id ? T.gold + "88" : T.border}`,
+                color: borderStyle === b.id ? T.gold : T.inkMid,
+                fontSize: 11, fontFamily: "inherit", transition: "all .12s",
+              }}
+              onMouseEnter={e => { if (borderStyle !== b.id) e.currentTarget.style.background = T.bg4; }}
+              onMouseLeave={e => { if (borderStyle !== b.id) e.currentTarget.style.background = T.bg3; }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{b.preview}</span>
+              <span style={{ fontSize: 10 }}>{b.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Story Panel (Left Sidebar) ─────────────────────────────────── */
+function StoryPanel({ activeChapter, setActiveChapter, chapters, onAddChapter, onDeleteChapter }) {
+  const [frontOpen, setFrontOpen] = useState(true);
+  const [chapOpen, setChapOpen] = useState(true);
+  const [backOpen, setBackOpen] = useState(false);
+  const [qaOpen, setQaOpen] = useState(true);
+
+  const Section = ({ label, open, setOpen, children, icon }) => (
+    <div style={{ borderBottom: `1px solid ${T.border}` }}>
+      <div onClick={() => setOpen(v => !v)} style={{
+        display: "flex", alignItems: "center", gap: 7, padding: "8px 14px",
+        cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em",
+        textTransform: "uppercase", color: open ? T.gold : T.inkDim,
+        background: open ? T.bg2 : T.bg1, transition: "all .15s",
+        userSelect: "none",
+      }}>
+        <span style={{ fontSize: 13 }}>{icon}</span>
+        {label}
+        <span style={{ marginLeft: "auto", fontSize: 9, transition: "transform .2s", display: "inline-block", transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}>▼</span>
+      </div>
+      {open && <div style={{ background: T.bg1 }}>{children}</div>}
+    </div>
+  );
+
+  const StatusDot = ({ s }) => {
+    const col = { done: T.green, writing: T.gold, draft: T.accentLight, outline: T.inkDim }[s];
+    return <div style={{ width: 6, height: 6, borderRadius: "50%", background: col, flexShrink: 0 }} />;
+  };
+
+  return (
+    <div style={{
+      width: 240, minWidth: 200, background: T.bg1,
+      borderRight: `1px solid ${T.border}`,
+      display: "flex", flexDirection: "column", flexShrink: 0, overflowY: "auto",
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderBottom: `1px solid ${T.border}`, background: T.bg2,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <div style={{ width: 8, height: 8, background: T.gold, borderRadius: 2, transform: "rotate(45deg)" }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: T.ink, letterSpacing: "0.06em" }}>BOOK</span>
+        </div>
+        <div style={{ display: "flex", gap: 3 }}>
+          {["+", "⋯"].map(ic => (
+            <button key={ic} style={{
+              width: 22, height: 22, borderRadius: 4, border: `1px solid ${T.border2}`,
+              background: "transparent", color: T.inkDim, cursor: "pointer", fontSize: 12,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>{ic}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Front Matter */}
+      <Section label="Front Matter" icon="📄" open={frontOpen} setOpen={setFrontOpen}>
+        {["Cover", "Dedication", "Preface"].map(item => (
+          <div key={item} style={{
+            padding: "5px 14px 5px 32px", fontSize: 12, color: T.inkDim, cursor: "pointer",
+            transition: "color .12s",
+          }}
+            onMouseEnter={e => e.currentTarget.style.color = T.inkMid}
+            onMouseLeave={e => e.currentTarget.style.color = T.inkDim}
+          >{item}</div>
+        ))}
+      </Section>
+
+      {/* Chapters */}
+      <Section label="Chapters" icon="📖" open={chapOpen} setOpen={setChapOpen}>
+        <div style={{ padding: "6px 10px" }}>
+          {chapters.map(ch => (
+            <div key={ch.id} onClick={() => setActiveChapter(ch.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 7, padding: "6px 8px",
+                borderRadius: 5, cursor: "pointer", marginBottom: 1,
+                border: `1px solid ${activeChapter === ch.id ? T.border2 : "transparent"}`,
+                background: activeChapter === ch.id ? T.bg3 : "transparent",
+                transition: "all .12s",
+              }}>
+              <div style={{
+                width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                background: activeChapter === ch.id ? T.accent : T.bg3,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 9, fontWeight: 700, color: activeChapter === ch.id ? "#fff" : T.inkDim,
+              }}>{chapters.indexOf(ch) + 1}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 12, fontWeight: activeChapter === ch.id ? 600 : 400,
+                  color: activeChapter === ch.id ? T.accentLight : T.inkMid,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>{ch.title}</div>
+              </div>
+              <StatusDot s={ch.status || getStatus(countWords(ch.content || ""))} />
+              {chapters.length > 1 && (
+                <span onClick={e => { e.stopPropagation(); onDeleteChapter(ch.id); }}
+                  style={{ fontSize: 10, color: T.inkFaint, cursor: "pointer", opacity: 0.5, paddingLeft: 2 }}
+                  title="ลบบท">×</span>
+              )}
+            </div>
+          ))}
+          <button style={{
+            width: "100%", padding: "6px", border: `1.5px dashed ${T.border2}`,
+            borderRadius: 4, background: "transparent", color: T.inkDim,
+            fontSize: 11, cursor: "pointer", fontFamily: "inherit", marginTop: 4,
+            transition: "all .15s",
+          }}
+            onClick={onAddChapter}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.color = T.accent; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border2; e.currentTarget.style.color = T.inkDim; }}
+          >+ เพิ่มบทใหม่</button>
+        </div>
+      </Section>
+
+      {/* Back Matter */}
+      <Section label="Back Matter" icon="📑" open={backOpen} setOpen={setBackOpen}>
+        {["Epilogue", "Author's Note"].map(item => (
+          <div key={item} style={{ padding: "5px 14px 5px 32px", fontSize: 12, color: T.inkDim, cursor: "pointer" }}>{item}</div>
+        ))}
+      </Section>
+
+      {/* Quick Access */}
+      <Section label="Quick Access" icon="⚡" open={qaOpen} setOpen={setQaOpen}>
+        <div style={{ padding: "6px 14px" }}>
+          {[
+            { icon: "⭐", label: "Favorite Chapters", color: T.gold },
+            { icon: "✏️", label: "Draft", color: T.accentLight },
+            { icon: "⚠️", label: "Plot Issues", color: "#e55" },
+          ].map(item => (
+            <div key={item.label} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "5px 0",
+              fontSize: 12, color: T.inkDim, cursor: "pointer", transition: "color .12s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = item.color}
+              onMouseLeave={e => e.currentTarget.style.color = T.inkDim}
+            >
+              <span style={{ fontSize: 13 }}>{item.icon}</span>{item.label}
+            </div>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/* ─── Writing Canvas ─────────────────────────────────────────────── */
+function WritingCanvas({ activeChapter, chapters, onUpdateContent, borderStyle, borderColor }) {
+  const ch = chapters.find(c => c.id === activeChapter) || chapters[0];
+  const chIdx = chapters.indexOf(ch);
+  const [editing, setEditing] = useState(false);
+  const textRef = useRef(null);
+
+  useEffect(() => {
+    setEditing(false);
+  }, [activeChapter]);
+
+  const content = ch ? (ch.content || "") : "";
+  const paragraphs = content.split("\n\n").filter(p => p.trim());
+
+  return (
+    <div style={{
+      flex: 1, display: "flex", flexDirection: "column",
+      alignItems: "center", padding: "32px 20px", overflowY: "auto",
+      background: "#1a1714",
+    }}>
+      {/* A5 Page */}
+      <div style={{
+        width: 520, minHeight: 735, background: T.paper,
+        borderRadius: 2, boxShadow: "0 8px 48px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)",
+        position: "relative", padding: "52px 48px 60px",
+        fontFamily: "'Sarabun', sans-serif",
+        overflow: "hidden",
+      }}>
+        {/* Border overlay */}
+        <PageBorderOverlay borderStyle={borderStyle || "none"} color={borderColor} />
+        {/* Page header */}
+        <div style={{
+          position: "absolute", top: 22, left: 0, right: 0,
+          display: "flex", justifyContent: "space-between", padding: "0 48px",
+          fontSize: 9.5, color: "#bbb", letterSpacing: "0.08em", textTransform: "uppercase",
+        }}>
+          <span>NovelForge</span>
+          <span>{ch ? ch.title : ""}</span>
+        </div>
+
+        {/* Chapter heading */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "#8b6a45", marginBottom: 10, fontWeight: 600 }}>
+            บทที่ {chIdx + 1}
+          </div>
+          <div style={{
+            fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700,
+            color: "#1a1612", lineHeight: 1.3,
+          }}>{ch ? ch.title : ""}</div>
+          <div style={{ width: 32, height: 2, background: T.accent, margin: "14px auto 0" }} />
+        </div>
+
+        {/* Body — click to edit */}
+        {editing ? (
+          <textarea
+            ref={textRef}
+            autoFocus
+            defaultValue={content}
+            onChange={e => onUpdateContent(ch.id, e.target.value)}
+            onBlur={() => setEditing(false)}
+            style={{
+              width: "100%", minHeight: 500, fontSize: 15, lineHeight: 1.9,
+              color: "#1a1612", fontFamily: "'Sarabun', sans-serif",
+              border: "1.5px solid #c9a22744", borderRadius: 4,
+              padding: "8px", resize: "vertical", outline: "none",
+              background: "#fffef8",
+            }}
+          />
+        ) : (
+          <div
+            onClick={() => setEditing(true)}
+            title="คลิกเพื่อแก้ไข"
+            style={{
+              fontSize: 15, lineHeight: 1.9, color: "#1a1612",
+              textAlign: "justify", fontFamily: "'Sarabun', sans-serif",
+              cursor: "text", minHeight: 100,
+              borderRadius: 4, transition: "background .15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "#f5f0e818"}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+          >
+            {paragraphs.length > 0 ? paragraphs.map((para, i) => (
+              <p key={i} style={{ marginBottom: "0.4em", textIndent: i === 0 ? 0 : "2em" }}>{para}</p>
+            )) : (
+              <p style={{ color: "#bbb", fontStyle: "italic" }}>คลิกเพื่อเริ่มเขียน...</p>
+            )}
+          </div>
+        )}
+
+        {/* Page number */}
+        <div style={{
+          position: "absolute", bottom: 24, left: 0, right: 0,
+          textAlign: "center", fontSize: 10, color: "#bbb", letterSpacing: "0.1em",
+        }}>{chIdx + 1}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Book Preview Canvas ─────────────────────────────────────────── */
+function BookPreviewCanvas({ activeChapter, chapters }) {
+  const ch = chapters.find(c => c.id === activeChapter) || chapters[0];
+  const content = ch ? (ch.content || "") : "";
+  const paras = content.split("\n\n").filter(p => p.trim());
+  const Page = ({ side, title, content }) => (
+    <div style={{
+      width: 240, minHeight: 340, background: T.paperWarm,
+      borderRadius: side === "left" ? "4px 0 0 4px" : "0 4px 4px 0",
+      boxShadow: side === "left"
+        ? "inset -4px 0 8px rgba(0,0,0,0.15), 4px 0 12px rgba(0,0,0,0.3)"
+        : "inset 4px 0 8px rgba(0,0,0,0.1), -4px 0 12px rgba(0,0,0,0.2)",
+      padding: "28px 24px 36px", fontFamily: "'Sarabun', sans-serif",
+      position: "relative",
+    }}>
+      {title && (
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: "#2a1a0e" }}>{title}</div>
+          <div style={{ width: 20, height: 1.5, background: T.accent, margin: "8px auto 0" }} />
+        </div>
+      )}
+      <div style={{ fontSize: 11, lineHeight: 1.85, color: "#2a1a0e", textAlign: "justify" }}>
+        {content}
+      </div>
+      <div style={{ position: "absolute", bottom: 12, left: 0, right: 0, textAlign: "center", fontSize: 9, color: "#aaa" }}>
+        {side === "left" ? "6" : "7"}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1714", padding: 32 }}>
+      <div style={{ display: "flex", boxShadow: "0 20px 60px rgba(0,0,0,0.7)" }}>
+        <Page side="left" title={ch ? `บทที่ ${chapters.indexOf(ch)+1} ${ch.title}` : ""} content={paras[0] || "..."} />
+        <Page side="right" content={paras[1] || paras[0] || "..."} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Kindle Preview ─────────────────────────────────────────────── */
+function KindleCanvas({ activeChapter, chapters }) {
+  const ch = chapters.find(c => c.id === activeChapter) || chapters[0];
+  const content = ch ? (ch.content || "") : "";
+  const chIdx = ch ? chapters.indexOf(ch) : 0;
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1714", padding: 32 }}>
+      <div style={{
+        width: 300, height: 420, background: "#1c1c1e", borderRadius: 12,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.8)", border: "1px solid #333",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        <div style={{ background: "#111", padding: "8px 14px", display: "flex", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 10, color: "#666" }}>Kindle</span>
+          <span style={{ fontSize: 10, color: "#666" }}>{new Date().toLocaleTimeString("th-TH", {hour:"2-digit",minute:"2-digit"})}</span>
+        </div>
+        <div style={{ flex: 1, padding: "24px 20px", overflowY: "auto" }}>
+          <div style={{ fontFamily: "'Georgia', serif", fontSize: 14, lineHeight: 1.9, color: "#d4c9b8", textAlign: "justify" }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>บทที่ {chIdx + 1}</div>
+              <div style={{ fontSize: 12, color: "#8a7a6a" }}>{ch ? ch.title : ""}</div>
+            </div>
+            {content.substring(0, 400)}{content.length > 400 ? "..." : ""}
+          </div>
+        </div>
+        <div style={{ padding: "8px 14px", background: "#111", display: "flex", justifyContent: "center" }}>
+          <div style={{ width: 60, height: 3, background: "#333", borderRadius: 2 }}>
+            <div style={{ width: "30%", height: "100%", background: T.gold, borderRadius: 2 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Print Preview ─────────────────────────────────────────────── */
+function PrintCanvas({ activeChapter, chapters }) {
+  const ch = chapters.find(c => c.id === activeChapter) || chapters[0];
+  const content = ch ? (ch.content || "") : "";
+  const chIdx = ch ? chapters.indexOf(ch) : 0;
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1714", padding: 32 }}>
+      <div style={{
+        width: 400, background: "#fff",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+        padding: "60px 56px", fontFamily: "'Sarabun', sans-serif",
+        position: "relative",
+      }}>
+        <div style={{
+          position: "absolute", top: 12, left: 0, right: 0,
+          display: "flex", justifyContent: "space-between", padding: "0 56px",
+          fontSize: 9, color: "#aaa", borderBottom: "0.5px solid #ddd", paddingBottom: 8,
+        }}>
+          <span>NovelForge</span><span>{chIdx + 1}</span>
+        </div>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#888", marginBottom: 8 }}>บทที่ {chIdx + 1}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#111" }}>{ch ? ch.title : ""}</div>
+          <div style={{ width: 28, height: 1.5, background: T.accent, margin: "10px auto 0" }} />
+        </div>
+        <div style={{ fontSize: 12, lineHeight: 1.85, color: "#1a1612", textAlign: "justify" }}>
+          {content.substring(0, 500)}{content.length > 500 ? "..." : ""}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Status Bar ─────────────────────────────────────────────────── */
+function StatusBar({ mode, setMode, chapters, activeChapter }) {
+  const ch = chapters.find(c => c.id === activeChapter) || chapters[0];
+  const words = ch ? countWords(ch.content || "") : 0;
+  const chars = ch ? (ch.content || "").length : 0;
+  const totalWords = chapters.reduce((s, c) => s + countWords(c.content || ""), 0);
+  const estPages = Math.ceil(totalWords / 350) || 1;
+  const modes = [
+    { id: "writing", icon: "✍️", label: "Writing Mode" },
+    { id: "book", icon: "📖", label: "Book Preview" },
+    { id: "kindle", icon: "📱", label: "Kindle Preview" },
+    { id: "print", icon: "🖨", label: "Print Preview" },
+  ];
+  return (
+    <div style={{
+      height: 30, background: T.bg1, borderTop: `1px solid ${T.border}`,
+      display: "flex", alignItems: "center", padding: "0 12px", gap: 12,
+      flexShrink: 0, justifyContent: "space-between",
+    }}>
+      <div style={{ display: "flex", gap: 14, fontSize: 11, color: T.inkDim }}>
+        <span>Words: <strong style={{ color: T.inkMid }}>{words.toLocaleString()}</strong></span>
+        <span>Chars: <strong style={{ color: T.inkMid }}>{chars.toLocaleString()}</strong></span>
+        <span>Total: <strong style={{ color: T.inkMid }}>{totalWords.toLocaleString()} คำ</strong></span>
+        <span>~Pages: <strong style={{ color: T.inkMid }}>{estPages}</strong></span>
+        <span style={{ color: T.inkFaint }}>A5 (14.8×21 cm)</span>
+        <span style={{ color: T.gold }}>100%</span>
+      </div>
+      {/* Mode tabs in status bar */}
+      <div style={{ display: "flex", gap: 2 }}>
+        {modes.map(m => (
+          <button key={m.id} onClick={() => setMode(m.id)} style={{
+            padding: "3px 10px", borderRadius: 4, fontSize: 11, fontFamily: "inherit",
+            cursor: "pointer", fontWeight: 500, transition: "all .15s",
+            background: mode === m.id ? "rgba(139,69,19,0.2)" : "transparent",
+            border: `1px solid ${mode === m.id ? T.accent : "transparent"}`,
+            color: mode === m.id ? T.accentLight : T.inkDim,
+            display: "flex", alignItems: "center", gap: 4,
+          }}>
+            <span style={{ fontSize: 10 }}>{m.icon}</span>{m.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Context Panel (Right) ─────────────────────────────────────── */
+function ContextPanel({ activeChapter, chapters, onUpdateNote }) {
+  const [tab, setTab] = useState("info");
+  const [goals, setGoals] = useState([true, true, false]);
+  const [tags, setTags] = useState(["ตัวเอก", "สำคัญ", "แอ็กชัน"]);
+  const ch = chapters.find(c => c.id === activeChapter) || chapters[0];
+
+  const tabs = ["Info", "Characters", "Notes", "AI"];
+
+  const Field = ({ label, value, placeholder }) => (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: T.inkDim, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+      <input defaultValue={value} placeholder={placeholder} style={{
+        width: "100%", background: T.bg3, border: `1px solid ${T.border2}`,
+        borderRadius: 4, padding: "5px 8px", fontSize: 12, color: T.ink,
+        fontFamily: "inherit", outline: "none",
+      }} />
+    </div>
+  );
+
+  return (
+    <div style={{
+      width: 256, background: T.bg1, borderLeft: `1px solid ${T.border}`,
+      display: "flex", flexDirection: "column", flexShrink: 0,
+    }}>
+      {/* Tabs */}
+      <div style={{ display: "flex", borderBottom: `1px solid ${T.border}` }}>
+        {tabs.map(t => (
+          <button key={t} onClick={() => setTab(t.toLowerCase())} style={{
+            flex: 1, padding: "10px 4px", textAlign: "center",
+            fontSize: 11, fontWeight: 700, letterSpacing: "0.06em",
+            textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit",
+            background: "transparent", border: "none",
+            color: tab === t.toLowerCase() ? T.accent : T.inkDim,
+            borderBottom: `2px solid ${tab === t.toLowerCase() ? T.accent : "transparent"}`,
+            marginBottom: -1, transition: "all .15s",
+          }}>{t}</button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px" }}>
+        {tab === "info" && (
+          <>
+            {/* Scene section */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2 }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: T.inkMid, letterSpacing: "0.08em", textTransform: "uppercase" }}>Scene</span>
+              </div>
+              <Field label="Location" value="โรงงานหลอมเหล็ก มอร์แกน" />
+              <Field label="Time" value="เช้า" />
+              <Field label="Mood" value="มุ่งมั่น / คาดหวัง" />
+            </div>
+
+            {/* Chapter note */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: T.inkDim, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Chapter Note</div>
+              <textarea
+                key={activeChapter}
+                defaultValue={ch ? (ch.note || "") : ""}
+                placeholder="บันทึกของบทนี้..."
+                onChange={e => onUpdateNote && onUpdateNote(activeChapter, e.target.value)}
+                style={{
+                  width: "100%", background: T.bg3, border: `1px solid ${T.border2}`,
+                  borderRadius: 4, padding: "7px 8px", fontSize: 11, color: T.inkMid,
+                  fontFamily: "inherit", outline: "none", resize: "vertical", minHeight: 72,
+                  lineHeight: 1.6,
+                }} />
+            </div>
+
+            {/* Goals */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: T.inkDim, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Goals</div>
+              {["แนะนำตัวละครหลัก", "ปูพื้นหลังโลกและสถานที่", "สร้างความน่าสนใจ"].map((g, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                  <div onClick={() => setGoals(prev => prev.map((v, j) => j === i ? !v : v))} style={{
+                    width: 16, height: 16, borderRadius: 3, cursor: "pointer", flexShrink: 0,
+                    background: goals[i] ? T.accent : "transparent",
+                    border: `2px solid ${goals[i] ? T.accent : T.border2}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all .15s",
+                  }}>
+                    {goals[i] && <span style={{ color: "#fff", fontSize: 9, lineHeight: 1 }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize: 12, color: goals[i] ? T.inkMid : T.inkDim }}>{g}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Tags */}
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: T.inkDim, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Tags</div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
+                {tags.map(tag => <Tag key={tag} label={tag} onRemove={() => setTags(prev => prev.filter(t => t !== tag))} />)}
+                <button style={{
+                  width: 20, height: 20, borderRadius: "50%", border: `1px dashed ${T.border2}`,
+                  background: "transparent", color: T.inkDim, cursor: "pointer", fontSize: 13,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>+</button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === "characters" && (
+          <div>
+            <div style={{ fontSize: 11, color: T.inkDim, marginBottom: 12 }}>ตัวละครในบทนี้</div>
+            <div style={{ fontSize: 12, color: T.inkDim, fontStyle: "italic", padding: "12px 0" }}>
+              เพิ่มตัวละครได้ในอนาคต...
+            </div>
+            <textarea placeholder="รายชื่อตัวละครในบทนี้..." style={{
+              width: "100%", minHeight: 100, background: T.bg3, border: `1px solid ${T.border2}`,
+              borderRadius: 6, padding: "10px", fontSize: 12, color: T.inkMid,
+              fontFamily: "inherit", outline: "none", resize: "vertical", lineHeight: 1.7,
+            }} />
+          </div>
+        )}
+
+        {tab === "notes" && (
+          <div>
+            <textarea placeholder="บันทึกส่วนตัวสำหรับบทนี้..." style={{
+              width: "100%", minHeight: 200, background: T.bg3, border: `1px solid ${T.border2}`,
+              borderRadius: 6, padding: "10px", fontSize: 12, color: T.inkMid,
+              fontFamily: "inherit", outline: "none", resize: "vertical", lineHeight: 1.7,
+            }} />
+          </div>
+        )}
+
+        {tab === "ai" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 11, color: T.inkDim, marginBottom: 4 }}>AI Assistant</div>
+            {[
+              ["🪄", "ต่อเนื้อเรื่อง", T.accent],
+              ["✏️", "ปรับ Style", T.accentLight],
+              ["💡", "แนะนำต่อ", T.gold],
+              ["📊", "วิเคราะห์บท", "#5b9bd5"],
+              ["🔍", "Plot Hole Check", "#7c9e6f"],
+            ].map(([icon, label, color]) => (
+              <button key={label} style={{
+                padding: "9px 12px", border: `1px solid ${color}33`,
+                borderRadius: 6, background: `${color}0a`, color,
+                fontSize: 12, fontFamily: "inherit", cursor: "pointer",
+                textAlign: "left", fontWeight: 600, display: "flex", alignItems: "center", gap: 8,
+                transition: "all .15s",
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = `${color}18`}
+                onMouseLeave={e => e.currentTarget.style.background = `${color}0a`}
+              ><span style={{ fontSize: 15 }}>{icon}</span>{label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Dashboard View ─────────────────────────────────────────────── */
+function DashboardView({ setView, chapters, setActiveChapter }) {
+  const totalWords = chapters.reduce((s, c) => s + countWords(c.content || ""), 0);
+  const totalPages = Math.ceil(totalWords / 350) + 2;
+  const pct = Math.min(100, Math.round((chapters.filter(c => (c.status || getStatus(countWords(c.content||""))) === "done").length / Math.max(1,chapters.length)) * 100));
+  return (
+    <div style={{ flex: 1, overflowY: "auto", background: T.bg0, padding: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16, maxWidth: 1200 }}>
+
+        {/* Continue Writing */}
+        <div style={{ gridColumn: "1", background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.inkDim, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Dashboard</div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: T.inkFaint, marginBottom: 6 }}>Continue Writing</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>{chapters[0]?.title || "..."}</div>
+            <div style={{ fontSize: 11, color: T.inkDim, marginTop: 2 }}>บทล่าสุด: {chapters[chapters.length - 1]?.title || "-"}</div>
+            <div style={{ fontSize: 11, color: T.inkDim }}>{chapters.length} บท · {totalWords.toLocaleString()} คำ</div>
+            <div style={{ height: 4, background: T.bg4, borderRadius: 2, marginTop: 10, marginBottom: 4 }}>
+              <div style={{ width: `${pct}%`, height: "100%", background: T.gold, borderRadius: 2 }} />
+            </div>
+            <div style={{ fontSize: 10, color: T.gold }}>{pct}% สำเร็จ</div>
+          </div>
+          <button onClick={() => openEditor()} style={{
+            width: "100%", padding: "7px", background: T.accent, border: "none",
+            borderRadius: 5, color: "#fff", fontSize: 12, fontWeight: 600,
+            fontFamily: "inherit", cursor: "pointer",
+          }}>เขียนต่อ →</button>
+
+          <div style={{ marginTop: 16, borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
+            <div style={{ fontSize: 10, color: T.inkFaint, marginBottom: 8 }}>Recent Projects</div>
+            {["The Iron Valley Saga", "Project Phoenix", "The Last Engineer"].map((p, i) => (
+              <div key={p} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${T.border}` }}>
+                <div style={{ width: 28, height: 28, borderRadius: 4, background: [T.accent, "#1a3a5c", "#2d6a4f"][i], flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: T.inkMid }}>{p}</div>
+                  <div style={{ fontSize: 9.5, color: T.inkDim }}>Updated {[2, 1, 2][i]}d ago</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
+            <button style={{ padding: "7px", border: `1px solid ${T.border2}`, borderRadius: 5, background: "transparent", color: T.inkMid, fontSize: 12, fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              <span>✨</span> New Novel
+            </button>
+            <button style={{ padding: "7px", border: `1px solid ${T.border2}`, borderRadius: 5, background: "transparent", color: T.inkMid, fontSize: 12, fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              <span>📂</span> Import DOCX
+            </button>
+          </div>
+        </div>
+
+        {/* Character Database */}
+        <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.inkDim, letterSpacing: "0.1em", textTransform: "uppercase" }}>Stats</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { label: "บท", value: chapters.length },
+              { label: "คำทั้งหมด", value: totalWords.toLocaleString() },
+              { label: "หน้าประมาณ", value: totalPages },
+            ].map(item => (
+              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: T.bg3, borderRadius: 6, border: `1px solid ${T.border}` }}>
+                <span style={{ fontSize: 12, color: T.inkDim }}>{item.label}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: T.gold }}>{item.value}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 10, color: T.inkDim, marginBottom: 6 }}>บทตามสถานะ</div>
+              {chapters.map((c, i) => {
+                const w = countWords(c.content || "");
+                const s = c.status || getStatus(w);
+                const col = { done: T.green, writing: T.gold, draft: T.accentLight, outline: T.inkDim }[s] || T.inkDim;
+                return (
+                  <div key={c.id} onClick={() => { setActiveChapter(c.id); openEditor(); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: col, flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: T.inkMid, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</span>
+                    <span style={{ fontSize: 10, color: T.inkDim }}>{w.toLocaleString()} คำ</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Timeline */}
+        <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.inkDim, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Timeline View</div>
+          <div style={{ display: "flex", gap: 0, overflowX: "auto" }}>
+            {[
+              { day: "Day 2", chs: ["Ch 1", "Ch 3"] },
+              { day: "Day 3", chs: ["Ch 3", "Ch 4", "Ch 6"] },
+            ].map((day, di) => (
+              <div key={day.day} style={{ flex: 1, minWidth: 80 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: T.gold, textAlign: "center", padding: "4px 4px 10px", borderBottom: `1px solid ${T.border}`, marginBottom: 8 }}>{day.day}</div>
+                {day.chs.map(c => (
+                  <div key={c} style={{
+                    margin: "0 4px 5px", padding: "5px 8px", borderRadius: 4,
+                    background: T.bg3, border: `1px solid ${T.border}`,
+                    fontSize: 11, color: T.inkMid, textAlign: "center",
+                    cursor: "pointer",
+                  }}>{c}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 10, padding: "6px 8px", background: T.bg3, borderRadius: 6, border: `1px dashed ${T.border2}`, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: T.inkDim }}>Chapter 5 · Chapter 6</div>
+          </div>
+        </div>
+
+        {/* Plot Board Kanban */}
+        <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.inkDim, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Plot Board</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+            {["IDEA", "OUTLINE", "WRITING", "EDITING", "DONE"].map((col, ci) => {
+              const colColors = [T.inkDim, "#5b9bd5", T.gold, T.accentLight, T.green];
+              const items = [["ไอเดียหลัก", "ตัวละคร", "สภาพแวดล้อม"], ["บทที่ 1", "บทที่ 2", "บทที่ 3"], ["บทที่ 6", "บทที่ 5"], ["บทที่ 6", "บทที่ 5", "บทที่ 7"], ["บทที่ 8", "บทที่ 9"]][ci];
+              return (
+                <div key={col}>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: colColors[ci], letterSpacing: "0.1em", textAlign: "center", marginBottom: 6, padding: "3px 0", borderBottom: `1.5px solid ${colColors[ci]}44` }}>{col}</div>
+                  {items.map(item => (
+                    <div key={item} style={{
+                      padding: "4px 6px", background: T.bg3, borderRadius: 3,
+                      fontSize: 10, color: T.inkDim, marginBottom: 3,
+                      border: `1px solid ${T.border}`, cursor: "pointer",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>{item}</div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Mode thumbnails row ─────────────────────────────────────────── */
+function ModeThumbs({ mode, setMode, setView }) {
+  const modes = [
+    { id: "writing", label: "โหมดเขียน", sub: "เน้นสมาธิ ไม่มีรกวน", icon: "✍️", bg: "#1c1714" },
+    { id: "book", label: "โหมดดูหนังสือ", sub: "แสดงผลเหมือนหนังสือจริง", icon: "📖", bg: "#1a1612" },
+    { id: "kindle", label: "โหมด Kindle", sub: "จัดหน้าตัวอักษรและการจัดหน้า", icon: "📱", bg: "#131313" },
+    { id: "print", label: "โหมดพิมพ์", sub: "ตรวจสอบก่อนส่งโรงพิมพ์", icon: "🖨", bg: "#fff" },
+  ];
+  return (
+    <div style={{
+      background: T.bg0, borderTop: `1px solid ${T.border}`,
+      padding: "14px 20px", display: "flex", gap: 12, overflowX: "auto", flexShrink: 0,
+    }}>
+      {modes.map(m => (
+        <div key={m.id} onClick={() => { setMode(m.id); openEditor(); }} style={{
+          width: 150, flexShrink: 0, cursor: "pointer",
+          border: `1.5px solid ${mode === m.id ? T.accent : T.border}`,
+          borderRadius: 8, overflow: "hidden", transition: "all .15s",
+          background: mode === m.id ? "rgba(139,69,19,0.08)" : "transparent",
+        }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = mode === m.id ? T.accent : T.border2}
+          onMouseLeave={e => e.currentTarget.style.borderColor = mode === m.id ? T.accent : T.border}
+        >
+          <div style={{
+            height: 80, background: m.bg, display: "flex", alignItems: "center",
+            justifyContent: "center", fontSize: 28, borderBottom: `1px solid ${T.border}`,
+          }}>{m.icon}</div>
+          <div style={{ padding: "8px 10px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: mode === m.id ? T.accentLight : T.inkMid }}>{m.label}</div>
+            <div style={{ fontSize: 9.5, color: T.inkDim, marginTop: 2, lineHeight: 1.4 }}>{m.sub}</div>
+          </div>
+        </div>
+      ))}
+
+      {/* Slash commands panel */}
+      <div style={{
+        background: T.bg1, border: `1px solid ${T.border}`,
+        borderRadius: 8, padding: "12px 16px", minWidth: 200, flexShrink: 0,
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.inkDim, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>แถบคำสั่งด่วน</div>
+        {SLASH_CMDS.map(([cmd, desc]) => (
+          <div key={cmd} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 11 }}>
+            <span style={{ color: T.gold, fontFamily: "monospace", fontWeight: 700 }}>{cmd}</span>
+            <span style={{ color: T.inkDim }}>{desc}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile preview */}
+      <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.inkDim, letterSpacing: "0.08em", textTransform: "uppercase" }}>Mobile Layout</div>
+        <div style={{
+          width: 100, height: 160, background: "#111", borderRadius: 12,
+          border: "2px solid #333", overflow: "hidden", display: "flex", flexDirection: "column",
+        }}>
+          <div style={{ background: "#1a1a1a", padding: "4px 8px", display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 8, color: "#666" }}>☰</span>
+            <span style={{ fontSize: 8, color: "#888" }}>บทที่ 1</span>
+            <span style={{ fontSize: 8, color: "#666" }}>🔍</span>
+          </div>
+          <div style={{ flex: 1, padding: "6px 7px", fontSize: 7.5, lineHeight: 1.5, color: "#d4c9b8", overflow: "hidden" }}>
+            ไอลิน มอร์แกน ลืมตาขึ้นท่ามกลางเสียงเครื่องจักรที่ดังก้องอยู่รอบตัว กลิ่นน้ำมันและไอน้ำ...
+          </div>
+          <div style={{
+            borderTop: "1px solid #222", display: "flex",
+            justifyContent: "space-around", padding: "4px 0",
+          }}>
+            {["☰", "⚙", "🤖", "⋯"].map(ic => (
+              <span key={ic} style={{ fontSize: 12, color: "#555" }}>{ic}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main App ─────────────────────────────────────────────────────── */
+function NovelForgeV3() {
+  const [sideOpen, setSideOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  const [mode, setMode] = useState("writing");
+  const [view, setView] = useState("dashboard");
+
+  // ── Load from storage or defaults ──
+  const [chapters, setChapters] = useState(() => {
+    const saved = loadFromStorage();
+    return saved ? saved.chapters : DEFAULT_CHAPTERS;
+  });
+  const [activeChapter, setActiveChapter] = useState(() => {
+    const saved = loadFromStorage();
+    return saved ? saved.chapters[0].id : DEFAULT_CHAPTERS[0].id;
+  });
+  const [borderStyle, setBorderStyle] = useState("none");
+  const [borderColor, setBorderColor] = useState("#8b4513");
+
+  // ── Autosave when chapters change ──
+  useEffect(() => {
+    saveToStorage(chapters);
+    window.__nfState = { chapters, activeChapter };
+  }, [chapters]);
+
+  // ── Chapter operations ──
+  const handleUpdateContent = (id, content) => {
+    setChapters(prev => prev.map(c => c.id === id ? { ...c, content } : c));
+  };
+
+  const handleUpdateNote = (id, note) => {
+    setChapters(prev => prev.map(c => c.id === id ? { ...c, note } : c));
+  };
+
+  const handleAddChapter = () => {
+    const newId = Date.now();
+    setChapters(prev => [...prev, { id: newId, title: "บทใหม่", content: "", note: "", status: "outline" }]);
+    setActiveChapter(newId);
+    setView("editor");
+  };
+
+  const handleDeleteChapter = (id) => {
+    if (chapters.length <= 1) return;
+    setChapters(prev => {
+      const filtered = prev.filter(c => c.id !== id);
+      if (activeChapter === id) setActiveChapter(filtered[0].id);
+      return filtered;
+    });
+  };
+
+  const CanvasProps = { activeChapter, chapters, borderStyle, borderColor };
+
+  const CanvasMap = {
+    writing: <WritingCanvas {...CanvasProps} onUpdateContent={handleUpdateContent} />,
+    book: <BookPreviewCanvas {...CanvasProps} />,
+    kindle: <KindleCanvas {...CanvasProps} />,
+    print: <PrintCanvas {...CanvasProps} />,
+  };
+
+  return (
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: T.bg0, overflow: "hidden", fontFamily: "'Sarabun', 'Noto Sans Thai', sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap');
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2a2724; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3a3632; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+        input, textarea, select, button { font-family: 'Sarabun', 'Noto Sans Thai', sans-serif; }
+      `}</style>
+
+      {/* Top bar */}
+      <TopBar sideOpen={sideOpen} rightOpen={rightOpen} setSideOpen={setSideOpen} setRightOpen={setRightOpen} />
+
+      {/* Toolbar (only in writing editor) */}
+      {view === "editor" && <Toolbar activeMode={mode} borderStyle={borderStyle} setBorderStyle={setBorderStyle} borderColor={borderColor} setBorderColor={setBorderColor} />}
+
+      {/* Main workspace */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+
+        {/* Left story panel */}
+        {sideOpen && view === "editor" && (
+          <StoryPanel
+            activeChapter={activeChapter}
+            setActiveChapter={setActiveChapter}
+            chapters={chapters}
+            onAddChapter={handleAddChapter}
+            onDeleteChapter={handleDeleteChapter}
+          />
+        )}
+
+        {/* Center content */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+          {view === "dashboard" ? (
+            <DashboardView setView={setView} chapters={chapters} setActiveChapter={setActiveChapter} />
+          ) : (
+            CanvasMap[mode]
+          )}
+        </div>
+
+        {/* Right context panel */}
+        {rightOpen && view === "editor" && (
+          <ContextPanel
+            activeChapter={activeChapter}
+            chapters={chapters}
+            onUpdateNote={handleUpdateNote}
+          />
+        )}
+      </div>
+
+      {/* Status bar */}
+      {view === "editor" && <StatusBar mode={mode} setMode={setMode} chapters={chapters} activeChapter={activeChapter} />}
+
+      {/* Mode thumbs + slash commands + mobile preview */}
+      <ModeThumbs mode={mode} setMode={setMode} setView={setView} />
+    </div>
+  );
+}
+
+
+/* ─── openEditor: transfer data then open editor.html ─── */
+function openEditor() {
+  // Save chapters to shared localStorage key that editor.html reads
+  try {
+    const state = window.__nfState;
+    if (state && state.chapters && state.chapters.length > 0) {
+      const payload = {
+        chapters: state.chapters,
+        bookInfo: {},
+        settings: {},
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem('ebook_editor_autosave', JSON.stringify(payload));
+    }
+  } catch(e) {}
+  window.location.href = 'editor.html';
+}
+
+/* ─── Patch NovelForgeV3 to expose state ─── */
+const _OrigNovelForgeV3 = NovelForgeV3;
+function NovelForgeV3Wrapped() {
+  const result = _OrigNovelForgeV3();
+  // Not needed since we patch at hook level
+  return result;
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<NovelForgeV3 />);
+
+</script>
+</body>
+</html>
